@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+.expo/
+mobile/.expo/
+
+# Python
+ai-service/venv/
+__pycache__/
+*.pyc
+.Python
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Vercel / deployment local
+.vercel
+
+# Test / coverage
+coverage/
+
+# Mobile native
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Cursor
+.cursor/
+
+# Misc
+*.local
+dev-dist/
