@@ -6,9 +6,12 @@ AI-powered personal finance assistant for students — track allowance, expenses
 
 | Service | URL |
 |---------|-----|
-| **Web app** | _Set after Vercel deploy — see [Deployment](#deployment)_ |
-| **API** | _Set after Render deploy_ |
+| **Web app (PWA)** | Deploy to Vercel — see [Deployment](#deployment) |
+| **API** | `https://allowanceai-api.onrender.com` (after Render blueprint) |
+| **AI service** | `https://allowanceai-ai.onrender.com` |
 | **GitHub** | https://github.com/Platypus12345/AllowanceAI |
+
+> **Repo is ready locally** — run `gh auth login` then `.\scripts\deploy-production.ps1` to push and deploy.
 
 ## Features
 
