@@ -1,14 +1,15 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
+const { getGoogleCallbackUrl } = require('./appUrls');
 
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
-      passReqToCallback: true
+      callbackURL: getGoogleCallbackUrl(),
+      passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
@@ -36,6 +37,12 @@ passport.use(
         }
         return done(null, user);
       } catch (err) {
+        console.error('GoogleStrategy user lookup/create failed:', err.message);
+        if (err.message?.includes('namespace')) {
+          console.error(
+            'Check MONGO_URI on Render — database path must be only /allowanceAI with no extra segments like /.users'
+          );
+        }
         return done(err, null);
       }
     }

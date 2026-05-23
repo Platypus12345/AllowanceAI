@@ -31,6 +31,6 @@ const userSchema = new mongoose.Schema({
     enum: ['strict', 'supportive', 'savage', 'zen'],
     default: 'supportive',
   },
-}, { timestamps: true });
+}, { timestamps: true, collection: 'users' });
 
 module.exports = mongoose.model('User', userSchema);

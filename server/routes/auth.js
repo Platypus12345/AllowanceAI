@@ -7,6 +7,7 @@ const router = express.Router();
 const verifyJWT = require('../middleware/verifyJWT');
 const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../utils/mail');
+const { getClientBaseUrl } = require('../config/appUrls');
 
 function signToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -25,10 +26,6 @@ function sanitizeUser(user) {
   };
 }
 
-function clientBaseUrl() {
-  return (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim();
-}
-
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
@@ -37,14 +34,17 @@ router.get(
     passport.authenticate('google', { session: false }, (err, user) => {
       if (err) {
         console.error('PASSPORT AUTH ERROR:', err.message);
-        return res.redirect(`${clientBaseUrl()}/login?error=auth_failed`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(err.stack);
+        }
+        return res.redirect(`${getClientBaseUrl()}/login?error=auth_failed`);
       }
       if (!user) {
-        return res.redirect(`${clientBaseUrl()}/login?error=no_user`);
+        return res.redirect(`${getClientBaseUrl()}/login?error=no_user`);
       }
 
       const token = signToken(user._id);
-      res.redirect(`${clientBaseUrl()}/auth/callback?token=${token}`);
+      res.redirect(`${getClientBaseUrl()}/auth/callback?token=${token}`);
     })(req, res, next);
   }
 );
@@ -130,7 +130,7 @@ router.post('/forgot-password', async (req, res) => {
     user.resetTokenExpiry = new Date(Date.now() + 3600000);
     await user.save();
 
-    const resetLink = `${clientBaseUrl()}/reset-password/${token}`;
+    const resetLink = `${getClientBaseUrl()}/reset-password/${token}`;
 
     try {
       const mailResult = await sendPasswordResetEmail(user.email, resetLink);
