@@ -21,6 +21,8 @@
 4. After deploy, set `AI_SERVICE_URL` on API service to AI service URL.
 5. Set `CLIENT_URL` to your Vercel URL.
 
+**FastAPI AI service (detailed):** see [ai-service/RENDER_DEPLOY.md](ai-service/RENDER_DEPLOY.md).
+
 ## 3. Vercel
 
 1. Import repo → Root: **client**.

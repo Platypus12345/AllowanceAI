@@ -5,14 +5,32 @@ from typing import Any, List, Optional
 import uvicorn
 import os
 import json
+from dotenv import load_dotenv
 from prompt_builder import FinancialContext, build_system_prompt, check_proactive_triggers
 from llm_client import llm_client, get_ai_response
 
-app = FastAPI()
+load_dotenv()
+
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://allowance-ai-eight.vercel.app",
+    "https://allowanceai-api.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:5000",
+]
+
+
+def get_allowed_origins() -> list[str]:
+    raw = os.getenv("ALLOWED_ORIGINS", "").strip()
+    if raw:
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return DEFAULT_ALLOWED_ORIGINS
+
+
+app = FastAPI(title="AllowanceAI AI Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -266,4 +284,5 @@ Be specific with numbers. End encouragingly."""
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
