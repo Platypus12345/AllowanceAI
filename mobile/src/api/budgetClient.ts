@@ -57,6 +57,41 @@ export type UserMe = {
   name: string;
   email: string;
   allowance: number;
+  upiId?: string | null;
+  upiName?: string | null;
+};
+
+export type FriendRow = {
+  _id: string;
+  name: string;
+  upiId: string;
+  phone?: string | null;
+  avatar?: string;
+  totalOwed: number;
+};
+
+export type SplitRow = {
+  _id: string;
+  friendId: string;
+  friendName: string;
+  friendUpiId: string;
+  description: string;
+  totalAmount: number;
+  yourShare: number;
+  friendShare: number;
+  splitType: string;
+  status: string;
+  category: string;
+  settledAt?: string;
+  lastRemindedAt?: string;
+};
+
+export type SplitsResponse = {
+  pending: SplitRow[];
+  settled: SplitRow[];
+  totalOwedToYou: number;
+  totalYouOwe: number;
+  peopleOweYou: number;
 };
 
 export async function fetchBudgetStats(): Promise<BudgetStats> {
@@ -149,8 +184,73 @@ export async function postAllowanceRequest(payload: { amount: number, reason: st
   return data;
 }
 
-export async function postSplitRequest(payload: { amount: number, reason: string, toUserId?: string, method: 'upi' | 'whatsapp' }) {
-  const { data } = await api.post('/api/splits/request', payload);
+export async function fetchUserProfile() {
+  const { data } = await api.get('/api/user/profile');
+  return data.user;
+}
+
+export async function putUserUpi(payload: { upiId: string; upiName?: string }) {
+  const { data } = await api.put('/api/user/upi', payload);
+  return data;
+}
+
+export async function fetchFriends(): Promise<FriendRow[]> {
+  const { data } = await api.get<FriendRow[]>('/api/friends');
+  return data;
+}
+
+export async function postFriend(payload: { name: string; upiId: string; phone?: string }) {
+  const { data } = await api.post<FriendRow>('/api/friends', payload);
+  return data;
+}
+
+export async function fetchSplits(): Promise<SplitsResponse> {
+  const { data } = await api.get<SplitsResponse>('/api/splits');
+  return data;
+}
+
+export async function postSplit(payload: Record<string, unknown>) {
+  const { data } = await api.post('/api/splits', payload);
+  return data;
+}
+
+export async function settleSplit(id: string) {
+  const { data } = await api.put(`/api/splits/${id}/settle`);
+  return data;
+}
+
+export async function deleteSplit(id: string) {
+  const { data } = await api.delete(`/api/splits/${id}`);
+  return data;
+}
+
+export async function remindSplit(id: string) {
+  const { data } = await api.post(`/api/splits/${id}/remind`);
+  return data;
+}
+
+export async function fetchPendingSplitCount() {
+  const { data } = await api.get<{ count: number }>('/api/splits/pending-count');
+  return data.count;
+}
+
+export async function fetchLinkedParents() {
+  const { data } = await api.get('/api/allowance/linked-parents');
+  return data;
+}
+
+export async function fetchMoneyRequests() {
+  const { data } = await api.get('/api/requests');
+  return data;
+}
+
+export async function postUpiCollect(payload: { friendId: string; amount: number; note: string; senderUpiId?: string }) {
+  const { data } = await api.post('/api/requests/upi-collect', payload);
+  return data;
+}
+
+export async function postWhatsAppRequest(payload: { friendId: string; amount: number; note: string; senderUpiId?: string }) {
+  const { data } = await api.post('/api/requests/whatsapp', payload);
   return data;
 }
 

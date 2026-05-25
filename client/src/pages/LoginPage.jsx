@@ -288,7 +288,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full h-14 bg-primary-container rounded-2xl font-plus font-bold text-white active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-indigo-500/30"
             >
-              {loading ? 'Creating account...' : 'Get Started 🚀'}
+              {loading ? 'Creating account...' : 'Get Started'}
             </button>
           </form>
 

@@ -16,6 +16,7 @@ import BudgetGoals from '../components/BudgetGoals';
 import SpendPrediction from '../components/SpendPrediction';
 import ReportCard from '../components/ReportCard';
 import SplitsTab from '../components/SplitsTab';
+import ProfileUpiSection from '../components/ProfileUpiSection';
 import RecurringExpenses from '../components/RecurringExpenses';
 import SavingTips from '../components/SavingTips';
 import AnalyticsChart from '../components/AnalyticsChart';
@@ -36,6 +37,7 @@ const DashboardPage = () => {
 
   const [expenses, setExpenses] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [pendingSplitCount, setPendingSplitCount] = useState(0);
 
   const showWrappedBanner = (() => {
     const d = new Date();
@@ -62,8 +64,10 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchData();
+    api.get('/splits/pending-count').then((r) => setPendingSplitCount(r.data.count || 0)).catch(() => {});
     return subscribeFinanceUpdated(() => {
       fetchData();
+      api.get('/splits/pending-count').then((r) => setPendingSplitCount(r.data.count || 0)).catch(() => {});
     });
   }, [fetchData]);
 
@@ -74,7 +78,7 @@ const DashboardPage = () => {
       <TopAppBar />
       
       <div className="flex flex-1 pt-16 h-full">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingSplitCount={pendingSplitCount} />
         
         <main className="flex-1 p-5 relative z-10 min-w-0 overflow-y-auto">
           {activeTab === 'dashboard' && (
@@ -185,7 +189,6 @@ const DashboardPage = () => {
 
           {activeTab === 'splits' && (
             <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-               <h2 className="text-2xl font-bold mb-4">Split Expenses</h2>
                <SplitsTab />
             </div>
           )}
@@ -220,6 +223,15 @@ const DashboardPage = () => {
                    <p className="text-on-surface-variant font-plus">Budget Apprentice • Level 5</p>
                  </div>
                </div>
+
+               <ProfileUpiSection
+                 user={user}
+                 onUpdated={() => {
+                   api.get('/auth/me').then((r) => {
+                     localStorage.setItem('userData', JSON.stringify(r.data));
+                   });
+                 }}
+               />
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="glass-card rounded-[2.5rem] p-8 border border-white/5 space-y-6">

@@ -5,7 +5,17 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Colors, Fonts } from '@/constants/theme';
-import { postAllowanceRequest, postSplitRequest } from '@/src/api/budgetClient';
+import {
+  postAllowanceRequest,
+  fetchFriends,
+  fetchUserProfile,
+  fetchLinkedParents,
+  fetchMoneyRequests,
+  postUpiCollect,
+  postWhatsAppRequest,
+  type FriendRow,
+} from '@/src/api/budgetClient';
+import { useToast } from '@/src/context/ToastContext';
 
 
 const quickAmounts = [200, 500, 1000, 2000];
@@ -16,10 +26,30 @@ export default function RequestMoneyScreen() {
   const [tab, setTab] = useState<'parents' | 'friends'>('parents');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [selectedParent, setSelectedParent] = useState(0);
   const [method, setMethod] = useState<'upi' | 'whatsapp'>('upi');
-  const [upiId, setUpiId] = useState('');
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{ upiId?: string; upiName?: string; name?: string } | null>(null);
+  const [friends, setFriends] = useState<FriendRow[]>([]);
+  const [parents, setParents] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState('');
+  const [selectedParentIdx, setSelectedParentIdx] = useState(0);
+  const toast = useToast();
+
+  useEffect(() => {
+    Promise.all([fetchUserProfile(), fetchFriends(), fetchLinkedParents(), fetchMoneyRequests()])
+      .then(([prof, fr, par, req]) => {
+        setProfile(prof);
+        setFriends(fr);
+        setParents(par);
+        setRequests(req);
+        const owing = fr.filter((f) => f.totalOwed > 0);
+        if (owing[0]) setSelectedFriendId(owing[0]._id);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleSendParent = async () => {
     if (!amount || !reason) {
@@ -29,7 +59,8 @@ export default function RequestMoneyScreen() {
     setSending(true);
     try {
       // Mock parent phone for now as it's not in the UI selection yet
-      const parentPhone = "919876543210"; 
+      const parent = parents[selectedParentIdx];
+      const parentPhone = parent?.phone?.replace(/\D/g, '') || '919876543210';
       await postAllowanceRequest({ amount: Number(amount), reason, parentPhone });
       
       const message = encodeURIComponent(`Hi, I need ₹${amount} for ${reason}. - via AllowanceAI`);
@@ -51,28 +82,34 @@ export default function RequestMoneyScreen() {
   };
 
   const handleSendFriend = async () => {
-    if (!amount || !reason) {
-      Alert.alert('Error', 'Please enter amount and reason');
+    if (!profile?.upiId) {
+      Alert.alert('UPI required', 'Set your UPI ID in Profile first', [
+        { text: 'Go to Profile', onPress: () => router.push('/(tabs)/profile') },
+        { text: 'Cancel' },
+      ]);
       return;
     }
-    
-    if (method === 'upi') {
-      if (!upiId.includes('@')) {
-        Alert.alert('Error', 'Please enter a valid UPI ID');
-        return;
-      }
-      await postSplitRequest({ amount: Number(amount), reason, method: 'upi' });
-      const url = `upi://collect?pa=${upiId}&pn=Friend&am=${amount}&tn=${encodeURIComponent(reason + ' via AllowanceAI')}`;
-      await Linking.openURL(url);
-    } else {
-      await postSplitRequest({ amount: Number(amount), reason, method: 'whatsapp' });
-      const message = encodeURIComponent(`Hey! You owe me ₹${amount} for ${reason}. Please send it when you can 🙏 — via AllowanceAI`);
-      const url = `whatsapp://send?text=${message}`;
-      await Linking.openURL(url);
+    if (!selectedFriendId || !amount || !reason) {
+      Alert.alert('Error', 'Select friend, amount, and note');
+      return;
     }
-
-    router.back();
+    const amt = Number(amount);
+    try {
+      if (method === 'upi') {
+        const res = await postUpiCollect({ friendId: selectedFriendId, amount: amt, note: reason, senderUpiId: profile.upiId });
+        await Linking.openURL(res.deepLink);
+        toast({ message: 'UPI collect opened', type: 'success' });
+      } else {
+        const res = await postWhatsAppRequest({ friendId: selectedFriendId, amount: amt, note: reason, senderUpiId: profile.upiId });
+        await Linking.openURL(res.deepLink);
+        toast({ message: 'WhatsApp opened', type: 'success' });
+      }
+    } catch (e: any) {
+      toast({ message: e.response?.data?.message || 'Failed', type: 'error' });
+    }
   };
+
+  const friendsWhoOwe = friends.filter((f) => f.totalOwed > 0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -90,13 +127,13 @@ export default function RequestMoneyScreen() {
              style={[styles.tab, tab === 'parents' && styles.activeTab]} 
              onPress={() => setTab('parents')}
            >
-             <Text style={[styles.tabText, tab === 'parents' && styles.activeTabText]}>From Parents 👨👩👦</Text>
+             <Text style={[styles.tabText, tab === 'parents' && styles.activeTabText]}>From Parents</Text>
            </TouchableOpacity>
            <TouchableOpacity 
              style={[styles.tab, tab === 'friends' && styles.activeTab]} 
              onPress={() => setTab('friends')}
            >
-             <Text style={[styles.tabText, tab === 'friends' && styles.activeTabText]}>From Friends 💸</Text>
+             <Text style={[styles.tabText, tab === 'friends' && styles.activeTabText]}>From Friends</Text>
            </TouchableOpacity>
         </View>
 
@@ -136,16 +173,20 @@ export default function RequestMoneyScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>SEND REQUEST TO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScroll}>
-                {['Mom', 'Dad', 'Guardian'].map((name, idx) => (
+                {parents.length === 0 ? (
+                  <Text style={{ color: Colors.onSurfaceVariant, fontFamily: Fonts.plus, paddingHorizontal: 20 }}>
+                    Link a parent account first
+                  </Text>
+                ) : parents.map((p: any, idx: number) => (
                   <TouchableOpacity 
-                    key={idx} 
-                    onPress={() => setSelectedParent(idx)}
-                    style={[styles.avatarItem, selectedParent === idx && styles.activeAvatar]}
+                    key={p._id} 
+                    onPress={() => setSelectedParentIdx(idx)}
+                    style={[styles.avatarItem, selectedParentIdx === idx && styles.activeAvatar]}
                   >
                     <View style={styles.avatarCircle}>
-                       <Text style={styles.avatarInitial}>{name[0]}</Text>
+                       <Text style={styles.avatarInitial}>{p.name?.[0]}</Text>
                     </View>
-                    <Text style={styles.avatarName}>{name}</Text>
+                    <Text style={styles.avatarName}>{p.name}</Text>
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity style={styles.addAvatar}>
@@ -184,19 +225,10 @@ export default function RequestMoneyScreen() {
                </View>
             </View>
 
-            <View style={styles.aiTipCard}>
-              <BlurView intensity={10} tint="dark" style={styles.aiTipBlur}>
-                 <MaterialIcons name="auto_awesome" size={20} color={Colors.tertiary} />
-                 <Text style={styles.aiTipText}>
-                   Requests for 'Mess Food' have a high approval rate during the first week of the month. Smart choice!
-                 </Text>
-              </BlurView>
-            </View>
-
             <TouchableOpacity 
               style={styles.sendButton} 
               onPress={handleSendParent}
-              disabled={sending}
+              disabled={sending || parents.length === 0}
             >
               {sending ? (
                 <ActivityIndicator color="white" />
@@ -209,24 +241,32 @@ export default function RequestMoneyScreen() {
           <>
             <View style={styles.section}>
                <Text style={styles.sectionLabel}>WHO OWES YOU?</Text>
+               {!profile?.upiId && (
+                 <View style={{ marginHorizontal: 20, marginBottom: 16, padding: 14, borderRadius: 16, backgroundColor: 'rgba(245,158,11,0.1)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' }}>
+                   <Text style={{ color: '#fbbf24', fontFamily: Fonts.plusBold, marginBottom: 8 }}>Set your UPI ID in Profile to request money</Text>
+                   <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
+                     <Text style={{ color: Colors.primary, fontFamily: Fonts.plusBold }}>Go to Profile</Text>
+                   </TouchableOpacity>
+                 </View>
+               )}
+               {friendsWhoOwe.length === 0 ? (
+                 <Text style={{ marginLeft: 24, color: Colors.onSurfaceVariant, fontFamily: Fonts.plus }}>Nobody owes you right now</Text>
+               ) : (
                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendScroll}>
-                 {[
-                   { name: 'Rahul', amount: 450 },
-                   { name: 'Sneha', amount: 120 },
-                   { name: 'Amit', amount: 300 }
-                 ].map((friend, idx) => (
-                   <TouchableOpacity key={idx} style={styles.friendCard}>
-                     <BlurView intensity={10} tint="dark" style={styles.friendBlur}>
+                 {friendsWhoOwe.map((friend) => (
+                   <TouchableOpacity key={friend._id} style={styles.friendCard} onPress={() => setSelectedFriendId(friend._id)}>
+                     <BlurView intensity={10} tint="dark" style={[styles.friendBlur, selectedFriendId === friend._id && { borderWidth: 1, borderColor: Colors.secondary }]}>
                         <View style={styles.friendAvatar}>
                            <Text style={styles.avatarInitial}>{friend.name[0]}</Text>
                         </View>
                         <Text style={styles.friendName}>{friend.name}</Text>
-                        <Text style={styles.friendAmount}>₹{friend.amount}</Text>
+                        <Text style={styles.friendAmount}>₹{friend.totalOwed}</Text>
                         <Text style={styles.unsettledTag}>UNSETTLED</Text>
                      </BlurView>
                    </TouchableOpacity>
                  ))}
                </ScrollView>
+               )}
             </View>
 
             <View style={styles.section}>
@@ -235,36 +275,34 @@ export default function RequestMoneyScreen() {
                     style={[styles.pill, method === 'upi' && styles.activePill]}
                     onPress={() => setMethod('upi')}
                   >
-                    <Text style={[styles.pillText, method === 'upi' && styles.activePillText]}>Via UPI ID 📱</Text>
+                    <Text style={[styles.pillText, method === 'upi' && styles.activePillText]}>Via UPI ID</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.pill, method === 'whatsapp' && styles.activePill]}
                     onPress={() => setMethod('whatsapp')}
                   >
-                    <Text style={[styles.pillText, method === 'whatsapp' && styles.activePillText]}>Via WhatsApp 💬</Text>
+                    <Text style={[styles.pillText, method === 'whatsapp' && styles.activePillText]}>Via WhatsApp</Text>
                   </TouchableOpacity>
                </View>
 
-               {method === 'upi' ? (
-                 <View style={styles.inputCard}>
-                    <BlurView intensity={10} tint="dark" style={styles.upiInputBlur}>
-                       <MaterialIcons name="phonelink-ring" size={20} color={Colors.primary} />
-                       <TextInput
-                         placeholder="Enter UPI ID (e.g. name@upi)"
-                         placeholderTextColor={Colors.onSurfaceVariant}
-                         value={upiId}
-                         onChangeText={setUpiId}
-                         style={styles.upiInput}
-                         autoCapitalize="none"
-                       />
-                    </BlurView>
-                 </View>
-               ) : (
+               {profile?.upiId && (
+                 <Text style={{ marginHorizontal: 20, marginBottom: 8, color: Colors.secondary, fontFamily: Fonts.plus }}>
+                   Receive on: {profile.upiId}
+                 </Text>
+               )}
+               <TextInput
+                 style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 14, color: 'white', fontFamily: Fonts.plus }}
+                 placeholder="What's this for?"
+                 placeholderTextColor={Colors.onSurfaceVariant}
+                 value={reason}
+                 onChangeText={setReason}
+               />
+               {method === 'whatsapp' && profile?.upiId && (
                  <View style={styles.whatsappPreview}>
                     <BlurView intensity={10} tint="dark" style={styles.whatsappBlur}>
                        <MaterialIcons name="message" size={24} color="#4ade80" />
                        <Text style={styles.whatsappText}>
-                         "Hey! You owe me ₹{amount || '0'} for {reason || '...'}. Please send it when you can 🙏 — via AllowanceAI"
+                         {`Hey ${friends.find(f => f._id === selectedFriendId)?.name || 'friend'}! You owe me ₹${amount || '0'} for ${reason || '...'}. Please send it to ${profile.upiId}. — via AllowanceAI`}
                        </Text>
                     </BlurView>
                  </View>

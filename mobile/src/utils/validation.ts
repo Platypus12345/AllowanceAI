@@ -15,6 +15,13 @@ export const validateAllowance = (amount: number) => {
   return null;
 };
 
+const UPI_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/;
+
+export const isValidUPI = (upiId: string) => {
+  if (!upiId?.trim()) return false;
+  return UPI_REGEX.test(upiId.trim());
+};
+
 export const validateBudgetGoal = (limit: number, spent: number) => {
   if (limit <= 0) return 'Limit must be greater than 0';
   if (limit < spent) return `You've already spent ₹${spent}. Set limit higher.`;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
@@ -7,7 +7,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSMS } from '@/src/context/SMSContext';
 import { formatINR } from '@/src/lib/formatINR';
-import { fetchMe, fetchBudgetStats, fetchGamificationStats } from '@/src/api/budgetClient';
+import { fetchMe, fetchBudgetStats, fetchGamificationStats, fetchUserProfile, putUserUpi } from '@/src/api/budgetClient';
+import { isValidUPI } from '@/src/utils/validation';
+import { useToast } from '@/src/context/ToastContext';
 import { Colors, Fonts } from '@/constants/theme';
 import TopAppBar from '@/components/TopAppBar';
 
@@ -20,11 +22,17 @@ export default function ProfileScreen() {
   const [level, setLevel] = useState(1);
   const [levelTitle, setLevelTitle] = useState('Broke Freshman');
   const [loading, setLoading] = useState(true);
+  const [upiId, setUpiId] = useState('');
+  const [upiName, setUpiName] = useState('');
+  const [editingUpi, setEditingUpi] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     try {
-      const [me, s, gami] = await Promise.all([fetchMe(), fetchBudgetStats(), fetchGamificationStats()]);
-      setUser({ ...me, badges: gami.badges || [] });
+      const [me, s, gami, prof] = await Promise.all([fetchMe(), fetchBudgetStats(), fetchGamificationStats(), fetchUserProfile()]);
+      setUser({ ...me, badges: gami.badges || [], upiId: prof.upiId, upiName: prof.upiName });
+      setUpiId(prof.upiId || '');
+      setUpiName(prof.upiName || prof.name || '');
       setStats(s);
       setLevel(gami.level ?? 1);
       setLevelTitle(gami.levelTitle ?? 'Broke Freshman');
@@ -84,6 +92,14 @@ export default function ProfileScreen() {
                 <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
               </View>
 
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/splits')}>
+                <View style={[styles.menuIcon, { backgroundColor: `${Colors.primary}20` }]}>
+                  <MaterialIcons name="groups" color={Colors.primary} size={20} />
+                </View>
+                <Text style={styles.menuTitle}>Split Expenses</Text>
+                <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/request-money')}>
                 <View style={[styles.menuIcon, { backgroundColor: `${Colors.secondary}20` }]}>
                   <MaterialIcons name="add-card" color={Colors.secondary} size={20} />
@@ -107,6 +123,67 @@ export default function ProfileScreen() {
                 <Text style={styles.menuTitle}>Past Wrappeds</Text>
                 <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
               </TouchableOpacity>
+            </BlurView>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Payment Details</Text>
+          <View style={styles.card}>
+            <BlurView intensity={10} tint="dark" style={styles.cardBlur}>
+              <TouchableOpacity style={styles.menuItem} onPress={() => setEditingUpi(true)}>
+                <View style={[styles.menuIcon, { backgroundColor: `${Colors.secondary}20` }]}>
+                  <MaterialIcons name="contactless" color={Colors.secondary} size={20} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.menuTitle}>Your UPI ID</Text>
+                  <Text style={styles.menuSub}>{user?.upiId || 'Tap to add UPI ID'}</Text>
+                </View>
+                <MaterialIcons name={user?.upiId ? 'edit' : 'add'} color={Colors.onSurfaceVariant} size={20} />
+              </TouchableOpacity>
+              {editingUpi && (
+                <View style={{ padding: 12 }}>
+                  <TextInput
+                    style={{ color: 'white', fontFamily: Fonts.plus, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, marginBottom: 8 }}
+                    placeholder="yourname@okicici"
+                    placeholderTextColor={Colors.onSurfaceVariant}
+                    value={upiId}
+                    onChangeText={setUpiId}
+                    autoCapitalize="none"
+                  />
+                  <TextInput
+                    style={{ color: 'white', fontFamily: Fonts.plus, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, marginBottom: 8 }}
+                    placeholder="Display name"
+                    placeholderTextColor={Colors.onSurfaceVariant}
+                    value={upiName}
+                    onChangeText={setUpiName}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      style={{ flex: 1, backgroundColor: Colors.primary, padding: 12, borderRadius: 12, alignItems: 'center' }}
+                      onPress={async () => {
+                        if (!isValidUPI(upiId)) {
+                          toast({ message: 'Invalid UPI format', type: 'warning' });
+                          return;
+                        }
+                        try {
+                          await putUserUpi({ upiId, upiName });
+                          toast({ message: 'UPI ID saved!', type: 'success' });
+                          setEditingUpi(false);
+                          load();
+                        } catch {
+                          toast({ message: 'Failed to save', type: 'error' });
+                        }
+                      }}
+                    >
+                      <Text style={{ color: 'white', fontFamily: Fonts.plusBold }}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ padding: 12 }} onPress={() => setEditingUpi(false)}>
+                      <Text style={{ color: Colors.onSurfaceVariant, fontFamily: Fonts.plusBold }}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </BlurView>
           </View>
         </View>

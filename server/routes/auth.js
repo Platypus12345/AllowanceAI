@@ -23,6 +23,8 @@ function sanitizeUser(user) {
     xp: user.xp,
     level: user.level,
     levelTitle: user.levelTitle,
+    upiId: user.upiId || null,
+    upiName: user.upiName || user.name,
   };
 }
 

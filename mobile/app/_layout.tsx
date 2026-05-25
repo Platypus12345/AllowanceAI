@@ -116,6 +116,7 @@ export default function RootLayout() {
                 <Stack.Screen name="ai-personality" options={{ headerShown: false }} />
                 <Stack.Screen name="help" options={{ headerShown: false }} />
                 <Stack.Screen name="request-money" options={{ headerShown: false }} />
+                <Stack.Screen name="splits" options={{ headerShown: false }} />
                 <Stack.Screen name="sms-sync" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="login"

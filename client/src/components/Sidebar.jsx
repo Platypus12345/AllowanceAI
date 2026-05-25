@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { LogOut, LayoutDashboard, Receipt, Bot, FileText, Target, Lightbulb, Layers } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, pendingSplitCount = 0 }) => {
   const { user, logout } = useAuth();
 
   const navItems = [
@@ -37,6 +37,11 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                 {item.icon}
               </span>
               <span className="flex-1 text-left">{item.label}</span>
+              {item.id === 'splits' && pendingSplitCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-error text-white text-[10px] font-plus font-black flex items-center justify-center">
+                  {pendingSplitCount > 9 ? '9+' : pendingSplitCount}
+                </span>
+              )}
               {activeTab === item.id && (
                 <div className="w-1.5 h-1.5 bg-secondary rounded-full shadow-[0_0_8px_rgba(68,226,205,0.6)]" />
               )}

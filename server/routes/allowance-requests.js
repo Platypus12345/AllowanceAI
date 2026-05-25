@@ -5,6 +5,28 @@ const verifyJWT = require('../middleware/verifyJWT');
 
 router.use(verifyJWT);
 
+router.get('/linked-parents', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.userId).populate(
+      'linkedAccounts',
+      'name email picture'
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const parents = (user.linkedAccounts || []).map((p) => ({
+      _id: p._id,
+      name: p.name,
+      email: p.email,
+      picture: p.picture,
+      phone: p.phone || null,
+    }));
+    res.json(parents);
+  } catch (error) {
+    console.error('linked-parents', error);
+    res.status(500).json({ error: 'Failed to fetch linked parents' });
+  }
+});
+
 // Create a new allowance request
 router.post('/', async (req, res) => {
   try {
