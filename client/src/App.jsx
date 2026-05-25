@@ -13,6 +13,8 @@ import AmbientBackground from './components/AmbientBackground';
 import { ToastProvider } from './components/ui/Toast';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import WrappedPage from './pages/WrappedPage';
+import JarsPage from './pages/JarsPage';
+import WishlistPage from './pages/WishlistPage';
 
 function App() {
   return (
@@ -58,6 +60,16 @@ function App() {
           <Route path="/wrapped" element={
             <ProtectedRoute>
               <WrappedPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/jars" element={
+            <ProtectedRoute>
+              <JarsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/wishlist" element={
+            <ProtectedRoute>
+              <WishlistPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />

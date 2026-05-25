@@ -1,7 +1,10 @@
 import { useAuth } from '../context/AuthContext';
 import { LogOut, LayoutDashboard, Receipt, Bot, FileText, Target, Lightbulb, Layers } from 'lucide-react';
 
+import { useNavigate } from 'react-router-dom';
+
 const Sidebar = ({ activeTab, setActiveTab, pendingSplitCount = 0 }) => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const navItems = [
@@ -13,6 +16,8 @@ const Sidebar = ({ activeTab, setActiveTab, pendingSplitCount = 0 }) => {
     { id: 'prediction', label: 'Prediction', icon: 'psychology' },
     { id: 'report', label: 'Monthly Report', icon: 'monitoring' },
     { id: 'splits', label: 'Split Expenses', icon: 'groups' },
+    { id: 'jars-nav', label: 'Savings Jars', icon: 'savings', path: '/jars' },
+    { id: 'wishlist-nav', label: 'Wishlist', icon: 'star', path: '/wishlist' },
     { id: 'recurring', label: 'Recurring', icon: 'event_repeat' },
     { id: 'tips', label: 'Saving Tips', icon: 'lightbulb' },
     { id: 'analytics', label: 'Analytics', icon: 'layers' },
@@ -26,7 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab, pendingSplitCount = 0 }) => {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => (item.path ? navigate(item.path) : setActiveTab(item.id))}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-plus font-medium transition-all group ${
                 activeTab === item.id 
                   ? 'bg-primary-container/10 text-primary border border-primary/20 shadow-sm shadow-primary/10' 

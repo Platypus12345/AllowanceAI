@@ -117,6 +117,8 @@ export default function RootLayout() {
                 <Stack.Screen name="help" options={{ headerShown: false }} />
                 <Stack.Screen name="request-money" options={{ headerShown: false }} />
                 <Stack.Screen name="splits" options={{ headerShown: false }} />
+                <Stack.Screen name="jars" options={{ headerShown: false }} />
+                <Stack.Screen name="wishlist" options={{ headerShown: false }} />
                 <Stack.Screen name="sms-sync" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="login"

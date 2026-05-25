@@ -25,6 +25,10 @@ const survivalRoutes = require('./routes/survival');
 const statsRoutes = require('./routes/stats');
 const userRoutes = require('./routes/user');
 const analyticsRoutes = require('./routes/analytics');
+const jarsRoutes = require('./routes/jars');
+const wishlistRoutes = require('./routes/wishlist');
+const { runAutoContribute } = require('./routes/jars');
+const { runCheckPrices } = require('./routes/wishlist');
 
 const app = express();
 
@@ -55,6 +59,8 @@ app.use('/api/survival', survivalRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/jars', jarsRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 const cron = require('node-cron');
 const RecurringExpense = require('./models/RecurringExpense');
@@ -154,6 +160,22 @@ cron.schedule('0 9 * * 0', async () => {
     }
   } catch (error) {
     console.error('Failed to send weekly summaries:', error);
+  }
+});
+
+cron.schedule('0 21 * * *', async () => {
+  try {
+    await runAutoContribute();
+  } catch (error) {
+    console.error('Jar auto-contribute cron failed:', error);
+  }
+});
+
+cron.schedule('0 */6 * * *', async () => {
+  try {
+    await runCheckPrices();
+  } catch (error) {
+    console.error('Wishlist price check cron failed:', error);
   }
 });
 

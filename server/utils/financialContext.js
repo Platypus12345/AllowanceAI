@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Expense = require('../models/Expense');
 const BudgetGoal = require('../models/BudgetGoal');
+const SavingsJar = require('../models/SavingsJar');
+const WishlistItem = require('../models/WishlistItem');
 const {
   calculateFinancialHealthFromExpenses,
   getMonthBounds,
@@ -58,9 +60,28 @@ async function getFinancialContext(userId) {
     .slice(0, 3)
     .map(([category, amount]) => ({ category, spent: amount }));
 
+  const jars = await SavingsJar.find({ userId, status: { $in: ['active', 'paused'] } });
+  const jarsSummary = jars.map((j) => ({
+    name: j.name,
+    target: j.targetAmount,
+    current: j.currentAmount,
+    percent: j.targetAmount > 0 ? Math.round((j.currentAmount / j.targetAmount) * 100) : 0,
+  }));
+
+  const wishlist = await WishlistItem.find({ userId, status: 'tracking' });
+  const wishlistSummary = wishlist.map((w) => ({
+    name: w.name,
+    currentPrice: w.currentPrice,
+    targetPrice: w.targetPrice,
+    affordable:
+      w.currentPrice != null && w.currentPrice <= finance.recommendedDailyLimit,
+  }));
+
   return {
     finance,
     ...finance,
+    jarsSummary,
+    wishlistSummary,
     allowance: finance.allowance,
     spent: finance.totalSpent,
     remaining: finance.remainingBalance,

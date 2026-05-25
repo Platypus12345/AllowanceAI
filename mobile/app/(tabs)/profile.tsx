@@ -92,6 +92,22 @@ export default function ProfileScreen() {
                 <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
               </View>
 
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/jars')}>
+                <View style={[styles.menuIcon, { backgroundColor: `${Colors.secondary}20` }]}>
+                  <MaterialIcons name="savings" color={Colors.secondary} size={20} />
+                </View>
+                <Text style={styles.menuTitle}>Savings Jars</Text>
+                <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/wishlist')}>
+                <View style={[styles.menuIcon, { backgroundColor: `${Colors.tertiary}20` }]}>
+                  <MaterialIcons name="star" color={Colors.tertiary} size={20} />
+                </View>
+                <Text style={styles.menuTitle}>Wishlist</Text>
+                <MaterialIcons name="chevron-right" color={Colors.onSurfaceVariant} size={20} />
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/splits')}>
                 <View style={[styles.menuIcon, { backgroundColor: `${Colors.primary}20` }]}>
                   <MaterialIcons name="groups" color={Colors.primary} size={20} />

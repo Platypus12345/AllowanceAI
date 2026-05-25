@@ -254,6 +254,46 @@ export async function postWhatsAppRequest(payload: { friendId: string; amount: n
   return data;
 }
 
+export async function fetchJars() {
+  const { data } = await api.get('/api/jars');
+  return data;
+}
+
+export async function postJar(payload: Record<string, unknown>) {
+  const { data } = await api.post('/api/jars', payload);
+  return data;
+}
+
+export async function contributeJar(id: string, amount: number, note?: string) {
+  const { data } = await api.post(`/api/jars/${id}/contribute`, { amount, note });
+  return data;
+}
+
+export async function fetchJarSuggest() {
+  const { data } = await api.get('/api/jars/suggest');
+  return data;
+}
+
+export async function fetchWishlist() {
+  const { data } = await api.get('/api/wishlist');
+  return data;
+}
+
+export async function previewWishlistUrl(productUrl: string) {
+  const { data } = await api.post('/api/wishlist/preview', { productUrl });
+  return data;
+}
+
+export async function postWishlistItem(payload: Record<string, unknown>) {
+  const { data } = await api.post('/api/wishlist', payload);
+  return data;
+}
+
+export async function checkWishlistItem(id: string) {
+  const { data } = await api.post(`/api/wishlist/${id}/check-one`);
+  return data;
+}
+
 export async function fetchRecurring() {
 
   const { data } = await api.get('/api/recurring');

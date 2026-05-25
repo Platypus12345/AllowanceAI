@@ -17,6 +17,8 @@ import SpendPrediction from '../components/SpendPrediction';
 import ReportCard from '../components/ReportCard';
 import SplitsTab from '../components/SplitsTab';
 import ProfileUpiSection from '../components/ProfileUpiSection';
+import JarSuggestionCard from '../components/JarSuggestionCard';
+import WishlistAlertWidget from '../components/WishlistAlertWidget';
 import RecurringExpenses from '../components/RecurringExpenses';
 import SavingTips from '../components/SavingTips';
 import AnalyticsChart from '../components/AnalyticsChart';
@@ -83,6 +85,8 @@ const DashboardPage = () => {
         <main className="flex-1 p-5 relative z-10 min-w-0 overflow-y-auto">
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto space-y-5 page-enter">
+              <JarSuggestionCard />
+              <WishlistAlertWidget />
               {showWrappedBanner && (
                 <button
                   type="button"

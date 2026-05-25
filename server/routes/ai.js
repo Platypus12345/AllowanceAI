@@ -520,6 +520,8 @@ router.post('/ask', async (req, res) => {
         available_tools: AVAILABLE_TOOLS,
         conversation_history: conversationHistory,
         category_breakdown: categoryBreakdown,
+        jars_summary: financeCtx.jarsSummary || [],
+        wishlist_summary: financeCtx.wishlistSummary || [],
       },
       { timeout: 30000 }
     );

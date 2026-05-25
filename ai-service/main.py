@@ -94,6 +94,24 @@ class AskRequest(BaseModel):
     tools: List[Any] = []
     available_tools: Optional[list] = None
     category_breakdown: dict = {}
+    jars_summary: List[dict] = []
+    wishlist_summary: List[dict] = []
+
+
+class JarSuggestRequest(BaseModel):
+    remaining: float = 0
+    daily_limit: float = 0
+    spent: float = 0
+    jars: List[dict] = []
+    days_left: int = 10
+
+
+class WishlistInsightsRequest(BaseModel):
+    name: str = ""
+    platform: str = "Other"
+    currentPrice: Optional[float] = None
+    targetPrice: Optional[float] = None
+    originalPrice: Optional[float] = None
 
 
 class FollowupRequest(BaseModel):
@@ -122,6 +140,23 @@ async def ask_assistant(request: AskRequest):
             category_breakdown=request.category_breakdown or {},
         )
         system_prompt = build_system_prompt(context)
+        if request.jars_summary:
+            jar_text = "\n".join(
+                [
+                    f"- {j.get('name')}: ₹{j.get('current')}/₹{j.get('target')} ({j.get('percent')}%)"
+                    for j in request.jars_summary
+                ]
+            )
+            system_prompt += f"\nSavings Jars:\n{jar_text}"
+        if request.wishlist_summary:
+            wish_text = "\n".join(
+                [
+                    f"- {w.get('name')}: ₹{w.get('currentPrice')} (target ₹{w.get('targetPrice')}, "
+                    f"{'AFFORDABLE TODAY' if w.get('affordable') else 'not yet affordable'})"
+                    for w in request.wishlist_summary
+                ]
+            )
+            system_prompt += f"\nWishlist:\n{wish_text}"
 
         tools = request.tools or []
         if not tools and request.available_tools:
@@ -281,6 +316,43 @@ Be specific with numbers. End encouragingly."""
         return {
             "narrative": f"{request.displayName}, you spent ₹{s.get('totalSpent', 0):,.0f} this month. Grade {s.get('grade', 'C')}. Keep going!"
         }
+
+
+@app.post("/jar-suggest")
+async def jar_suggest(req: JarSuggestRequest):
+    surplus = max(0, req.daily_limit - req.spent)
+    if surplus <= 0 or not req.jars:
+        return {"suggestion": None, "jarName": None, "suggestedAmount": 0}
+    closest = max(req.jars, key=lambda j: j.get("percent", 0))
+    suggested = min(int(surplus * 0.3), int(closest.get("target", 0) - closest.get("current", 0)))
+    if suggested < 10:
+        return {"suggestion": None, "jarName": None, "suggestedAmount": 0}
+    return {
+        "suggestion": f"You saved ₹{int(surplus)} today! Add ₹{suggested} to your {closest.get('name')} jar? You're {closest.get('percent')}% there",
+        "jarName": closest.get("name"),
+        "suggestedAmount": suggested,
+    }
+
+
+@app.post("/wishlist-insights")
+async def wishlist_insights(req: WishlistInsightsRequest):
+    platform = req.platform or "this platform"
+    buy_tip = f"Prices on {platform} often dip around month-end sales and festival events. Set alerts and compare across Amazon and Flipkart."
+    alternative = None
+    if req.currentPrice and req.currentPrice > 2000:
+        alternative = f"Similar items may be available around ₹{int(req.currentPrice * 0.6)} on Meesho or during bank offer sales."
+    try:
+        prompt = f"""Product: {req.name} on {platform}. Current ₹{req.currentPrice}, target ₹{req.targetPrice}.
+Give one sentence best time to buy tip for Indian e-commerce. Then one sentence cheaper alternative if price is high, or say NONE."""
+        answer = await get_ai_response("You give brief Indian shopping advice. Two short sentences max.", prompt)
+        parts = answer.split("\n")
+        if parts:
+            buy_tip = parts[0].strip()
+        if len(parts) > 1 and "none" not in parts[1].lower():
+            alternative = parts[1].strip()
+    except Exception:
+        pass
+    return {"buyTip": buy_tip, "alternative": alternative}
 
 
 if __name__ == "__main__":
