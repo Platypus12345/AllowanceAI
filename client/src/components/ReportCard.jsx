@@ -88,7 +88,7 @@ const ReportCard = () => {
         <button 
           type="button"
           onClick={downloadReport}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary-container flex items-center gap-2"
         >
           <span className="material-symbols-outlined text-xl">download</span>
           <span>Download Image</span>

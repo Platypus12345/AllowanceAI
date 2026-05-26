@@ -132,7 +132,7 @@ export default function RootLayout() {
                 <Stack.Screen name="wrapped" options={{ headerShown: false }} />
               </Stack>
             </View>
-            <StatusBar style="light" />
+            <StatusBar style="auto" />
           </ThemeProvider>
           </ToastProvider>
         </SMSProvider>

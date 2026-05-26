@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { dispatchFinanceUpdated } from '../utils/financeEvents';
+import { AnimatedNumber } from './ui/AnimatedNumber';
 import { StatCardSkeleton } from './ui/Skeleton';
 import { validateAllowance } from '../utils/validation';
 import { toast } from '../utils/toastBus';
 
-const StatCard = ({ label, value, color, icon, editable, onSave }) => {
+const StatCard = ({ title, value, colorClass, editable, onSave, animate = true }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [error, setError] = useState('');
@@ -28,51 +29,41 @@ const StatCard = ({ label, value, color, icon, editable, onSave }) => {
   };
 
   return (
-    <div className="card-elevated p-4 rounded-2xl relative overflow-hidden group">
-      {/* Colored top accent line */}
-      <div 
-        className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-        style={{ background: color }}
-      />
-      
-      <p className="text-xs text-[#8892b0] uppercase tracking-widest mb-2 flex items-center gap-1">
-        <span>{icon}</span>
-        {label}
-        {editable && !isEditing && (
-          <button 
-            type="button" 
-            onClick={() => setIsEditing(true)} 
-            className="hover:text-[#6c63ff] transition-colors cursor-pointer opacity-40 group-hover:opacity-100 ml-1"
-          >
-            <span className="material-symbols-outlined text-xs">edit</span>
-          </button>
-        )}
-      </p>
-
-      {isEditing ? (
-        <div className="flex flex-col gap-1 mt-1">
-          <div className="flex items-center gap-1">
-            <span className="font-space font-bold text-slate-400">₹</span>
-            <input
-              type="number"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              className="w-full bg-transparent border-b border-[#6c63ff] focus:outline-none text-xl font-space font-bold text-on-surface px-1"
-              style={{ color }}
-            />
-            <button type="button" onClick={handleSave} className="text-accent-teal">
-              <span className="material-symbols-outlined text-xl">check</span>
+    <div className="glass-card p-4 rounded-2xl relative overflow-hidden group card-tilt">
+      <div className="flex flex-col h-full justify-between relative z-10">
+        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2">
+          {title}
+          {editable && !isEditing && (
+            <button type="button" onClick={() => setIsEditing(true)} className="hover:text-primary transition-colors cursor-pointer opacity-40 group-hover:opacity-100">
+              <span className="material-symbols-outlined text-xs">edit</span>
             </button>
+          )}
+        </h3>
+
+        {isEditing ? (
+          <div className="flex flex-col gap-1 mt-1">
+            <div className="flex items-center gap-1">
+              <span className="font-space font-bold text-slate-400">₹</span>
+              <input
+                type="number"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                className="w-full bg-transparent border-b border-primary focus:outline-none text-xl font-space font-bold text-on-surface px-1"
+              />
+              <button type="button" onClick={handleSave} className="text-secondary">
+                <span className="material-symbols-outlined text-xl">check</span>
+              </button>
+            </div>
+            {error && <p className="text-xs text-error">{error}</p>}
           </div>
-          {error && <p className="text-xs text-accent-rose">{error}</p>}
-        </div>
-      ) : (
-        <p className="stat-number text-2xl font-space font-bold" style={{ color }}>
-          ₹{value?.toLocaleString('en-IN')}
-        </p>
-      )}
+        ) : (
+          <p className={`text-xl font-space font-bold ${colorClass}`}>
+            {animate ? <AnimatedNumber value={value} /> : <>₹{new Intl.NumberFormat('en-IN').format(value)}</>}
+          </p>
+        )}
+      </div>
     </div>
   );
 };
@@ -80,7 +71,7 @@ const StatCard = ({ label, value, color, icon, editable, onSave }) => {
 const DashboardStats = ({ stats, onUpdate, loading }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
         {[1, 2, 3, 4].map((i) => (
           <StatCardSkeleton key={i} />
         ))}
@@ -106,26 +97,12 @@ const DashboardStats = ({ stats, onUpdate, loading }) => {
       ? stats.finance?.recommendedDailyLimit ?? stats.dailyLimit
       : 0;
 
-  const items = [
-    { label: 'Total Allowance', value: stats.totalAllowance ?? stats.allowance, color: '#6c63ff', icon: '💰', editable: true },
-    { label: 'Spent', value: stats.spentAmount ?? stats.spent, color: '#ff6b8a', icon: '📤' },
-    { label: 'Remaining', value: stats.remainingBalance ?? stats.remaining, color: '#00d4b1', icon: '💵' },
-    { label: 'Daily Limit', value: dailyLimit, color: '#f5a623', icon: '📅' }
-  ];
-
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {items.map(stat => (
-        <StatCard
-          key={stat.label}
-          label={stat.label}
-          value={stat.value}
-          color={stat.color}
-          icon={stat.icon}
-          editable={stat.editable}
-          onSave={handleUpdateAllowance}
-        />
-      ))}
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
+      <StatCard title="Total Allowance" value={stats.totalAllowance} colorClass="text-primary" editable onSave={handleUpdateAllowance} />
+      <StatCard title="Spent Amount" value={stats.spentAmount} colorClass="text-error" />
+      <StatCard title="Remaining Balance" value={stats.remainingBalance} colorClass="text-secondary" />
+      <StatCard title="Daily Limit left" value={dailyLimit} colorClass="text-on-surface" />
     </div>
   );
 };
