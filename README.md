@@ -5,6 +5,15 @@ Now Live @https://allowance-ai-eight.vercel.app/
 
 AI-powered personal finance assistant for students — track allowance, expenses, budgets, and get smart coaching with a neon fintech UI. Installable as a PWA on mobile and desktop.
 
+## Highlights
+
+- Full-stack MERN + FastAPI microservice architecture
+- AI-powered budgeting assistant with LLM integration
+- JWT + Google OAuth authentication
+- Real-time analytics and smart budget predictions
+- SMS expense parsing and recurring expense tracking
+- Cross-platform support via PWA + React Native mobile app
+  
 ## Live demo
 
 | Service | URL |
@@ -24,6 +33,7 @@ AI-powered personal finance assistant for students — track allowance, expenses
 - AI chat assistant with personality modes and tool actions
 - Budget goals, monthly report, spending heatmap calendar
 - Smart notifications, gamification (XP, badges, streaks)
+- SMS expense parsing with automatic transaction detection
 - Monthly **Financial Wrapped** (Spotify-style story cards)
 - PWA — add to home screen, offline shell, standalone mode
 - React Native mobile app (Expo) in `/mobile`
@@ -152,5 +162,4 @@ curl https://allowanceai-api.onrender.com/api/health
 | `server/` | `npm run dev` | Nodemon dev |
 
 ## License
-
-MIT — built for demos, portfolios, and hackathons.
+MIT License
