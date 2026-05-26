@@ -19,7 +19,7 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import AmbientBackground from '@/components/AmbientBackground';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -30,6 +30,7 @@ import { ToastProvider } from '@/src/context/ToastContext';
 import { startSyncListener } from '@/src/services/offlineSync';
 
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import { updatePushToken } from '@/src/api/budgetClient';
 
 // Configure notifications
@@ -42,6 +43,9 @@ Notifications.setNotificationHandler({
 });
 
 async function registerForPushNotificationsAsync() {
+  // Web doesn't support Expo push tokens without VAPID; skip entirely.
+  if (Platform.OS === 'web') return null;
+
   let token;
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -52,6 +56,10 @@ async function registerForPushNotificationsAsync() {
   if (finalStatus !== 'granted') {
     return;
   }
+
+  // Only request Expo push tokens on a real device.
+  if (!Device.isDevice) return null;
+
   token = (await Notifications.getExpoPushTokenAsync({
     projectId: '07f0211b-b656-494e-bbfd-dc7d5494c8bd',
   })).data;
@@ -85,11 +93,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     startSyncListener();
-    registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        updatePushToken(token).catch(console.error);
-      }
-    });
+    if (Platform.OS !== 'web') {
+      registerForPushNotificationsAsync()
+        .then((token) => {
+          if (token) {
+            updatePushToken(token).catch(console.error);
+          }
+        })
+        .catch(console.error);
+    }
   }, []);
 
   if (!fontsLoaded) {

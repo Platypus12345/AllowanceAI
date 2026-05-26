@@ -37,6 +37,11 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "notification": {
+      "vapidPublicKey": "placeholder_vapid_key",
+      "androidMode": "default",
+      "androidCollapsedTitle": "AllowanceAI"
+    },
     "plugins": [
       "expo-router",
       [
