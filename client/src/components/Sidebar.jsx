@@ -32,10 +32,8 @@ const Sidebar = ({ activeTab, setActiveTab, pendingSplitCount = 0 }) => {
             <button
               key={item.id}
               onClick={() => (item.path ? navigate(item.path) : setActiveTab(item.id))}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-plus font-medium transition-all group ${
-                activeTab === item.id 
-                  ? 'bg-primary-container/10 text-primary border border-primary/20 shadow-sm shadow-primary/10' 
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-white/5'
+              className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 font-plus font-medium group ${
+                activeTab === item.id ? 'active' : ''
               }`}
             >
               <span className={`material-symbols-outlined text-2xl ${activeTab === item.id ? 'filled text-primary' : 'text-outline'} group-hover:text-primary transition-colors`}>

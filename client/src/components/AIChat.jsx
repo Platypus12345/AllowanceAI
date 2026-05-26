@@ -148,6 +148,20 @@ const AIChat = () => {
     setUndoState(null);
   }, []);
 
+  const notifyActionTaken = (actionTaken) => {
+    if (!actionTaken?.success) return;
+    const { toolName } = actionTaken;
+
+    if (toolName === 'add_expense' || toolName === 'delete_expense') {
+      window.dispatchEvent(new Event('expense-updated'));
+    }
+    if (toolName === 'create_budget_plan' || toolName === 'update_budget_goal') {
+      window.dispatchEvent(new Event('goals-updated'));
+    }
+
+    dispatchFinanceUpdated();
+  };
+
   const appendAssistant = (answer, actionTaken, resData) => {
     const msgId = Date.now() + 1;
     const aiMessage = {
@@ -159,8 +173,8 @@ const AIChat = () => {
     setMessages((prev) => [...prev, aiMessage]);
 
     if (actionTaken?.success) {
-      dispatchFinanceUpdated();
-      if (['add_expense', 'update_budget_goal', 'add_allowance'].includes(actionTaken.toolName)) {
+      notifyActionTaken(actionTaken);
+      if (['add_expense', 'update_budget_goal', 'add_allowance', 'delete_expense'].includes(actionTaken.toolName)) {
         setUndoState({ messageId: msgId, actionTaken, countdown: UNDO_SECONDS });
       }
     }
@@ -283,6 +297,10 @@ const AIChat = () => {
     );
   };
 
+  const showActionConfirmation = (actionTaken) =>
+    actionTaken?.success &&
+    actionTaken.toolName !== 'create_survival_plan';
+
   const renderBudgetPlan = (actionTaken) => {
     const plan = actionTaken?.plan;
     if (!plan || actionTaken?.toolName !== 'create_budget_plan') return null;
@@ -294,7 +312,7 @@ const AIChat = () => {
           </div>
           <div>
             <h3 className="font-bold text-white font-plus">New Budget Plan</h3>
-            <p className="text-xs text-on-surface-variant">Applied to your account</p>
+            <p className="text-xs text-on-surface-variant">Saved to your budget goals</p>
           </div>
         </div>
         {Object.entries(plan).map(([cat, limit]) => (
@@ -376,15 +394,15 @@ const AIChat = () => {
               <>
                 {renderSurvivalPlan(msg.actionTaken)}
                 {renderBudgetPlan(msg.actionTaken)}
-                {!renderSurvivalPlan(msg.actionTaken) && !renderBudgetPlan(msg.actionTaken) && (
-                  <div className="glass-card border-l-4 border-emerald-500 bg-emerald-500/5 p-4 rounded-2xl mx-auto max-w-[90%] mt-3 flex items-center justify-between">
+                {showActionConfirmation(msg.actionTaken) && (
+                  <div className="mt-3 bg-[#00d4b1]/10 border border-[#00d4b1]/20 rounded-xl p-3 flex items-center justify-between max-w-[90%] mx-auto">
                     <div className="flex items-center gap-3">
-                      <span className="text-emerald-400 text-xl">✅</span>
+                      <span className="text-[#00d4b1] text-lg">✅</span>
                       <div>
-                        <p className="text-emerald-400 font-bold text-sm">Action completed</p>
-                        <p className="text-on-surface-variant text-xs">
-                          {formatResultMessage(msg.actionTaken)}
+                        <p className="text-[#00d4b1] font-bold text-xs uppercase tracking-wide">
+                          Action Completed
                         </p>
+                        <p className="text-white text-sm">{formatResultMessage(msg.actionTaken)}</p>
                       </div>
                     </div>
                     {undoState?.messageId === msg.id && (

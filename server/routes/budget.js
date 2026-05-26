@@ -115,18 +115,22 @@ router.get('/prediction', async (req, res) => {
 
     res.json({
       finance,
-      dailyAverage: finance.avgDailySpend,
-      projectedTotal: finance.totalSpent + finance.avgDailySpend * (daysLeftInMonth - 1),
+      dailyAverage: Math.round(finance.avgDailySpend) || 0,
+      projectedTotal:
+        Math.round(finance.totalSpent + finance.avgDailySpend * daysLeftInMonth) || 0,
       projectedMonthEndBalance: finance.projectedMonthEndBalance,
       projectedRunoutDate,
-      daysLeft: finance.daysLeftInMonth,
+      daysLeft: finance.daysLeftInMonth || 0,
       willRunOut,
       safeDays:
         finance.avgDailySpend > 0
-          ? Math.floor(finance.remainingBalance / finance.avgDailySpend)
+          ? Math.max(0, Math.floor(finance.remainingBalance / finance.avgDailySpend))
           : finance.daysLeftInMonth,
       spendingStatus: finance.spendingStatus,
       insights: finance.insights,
+      remaining: Math.max(0, finance.remainingBalance),
+      allowance: totalAllowance || 0,
+      spent: spent || 0,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to calculate prediction' });

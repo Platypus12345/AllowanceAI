@@ -1,193 +1,154 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopAppBar from '../components/TopAppBar';
 
 const faqs = [
   {
-    q: 'How does AI prediction work?',
-    a: 'AllowanceAI analyses your historical spending patterns and uses your daily average burn rate to project how much you will spend by month end. It also pulls AI-generated insights from our language model to give personalised recommendations.',
-    icon: '🤖',
+    id: 1,
+    question: 'How does AI prediction work?',
+    answer:
+      'AllowanceAI analyzes your spending patterns from the current month. It calculates your daily average spend, then projects forward to predict if you will run out before month end. The prediction updates every time you add an expense.',
   },
   {
-    q: 'Is my financial data safe?',
-    a: 'All data is stored in your personal MongoDB account and transmitted over HTTPS. We never share your data with third parties. JWT tokens expire and are rotated regularly.',
-    icon: '🔒',
+    id: 2,
+    question: 'Security & Privacy',
+    answer:
+      'Your data is stored securely in MongoDB with JWT authentication. SMS messages are only read for transaction amounts and merchant names — your personal chats and OTPs are never accessed. Raw SMS content is never stored on our servers.',
   },
   {
-    q: 'How does SMS tracking work?',
-    a: 'On Android, the app reads bank SMS alerts (e.g. from SBI, HDFC, ICICI) to automatically parse and log expenses. No SMS data ever leaves your device — parsing happens locally.',
-    icon: '📱',
+    id: 3,
+    question: 'How does SMS tracking work?',
+    answer:
+      'On Android, AllowanceAI polls your SMS inbox every 45 seconds while the app is open, and every 5 minutes in the background. It looks for messages from bank sender IDs like HDFCBK, SBIINB, ICICIB etc. and extracts only the transaction amount and merchant name.',
   },
   {
-    q: 'What is the Wrapped feature?',
-    a: 'At the start and end of each month, you can view your Monthly Wrapped — a story-like presentation of your spending highlights, best/worst weeks, and an AI-generated financial verdict.',
-    icon: '🎁',
+    id: 4,
+    question: 'How do I set my monthly allowance?',
+    answer:
+      'Go to your Dashboard and click the edit icon next to "Total Allowance". You can update it any time. Your daily limit will automatically recalculate based on remaining balance and days left in the month.',
   },
   {
-    q: 'How do I request money from parents?',
-    a: 'Go to Profile → Request Allowance. This generates a UPI link and a readable summary. Your parent can approve it via any UPI app. The money shows in your allowance once received.',
-    icon: '💸',
+    id: 5,
+    question: 'What is the Daily Limit?',
+    answer:
+      'Daily Limit = Remaining Balance ÷ Days left in month. This is the key number AllowanceAI uses — not your total balance. If a purchase exceeds your daily limit, the AI will warn you even if you technically have money remaining.',
   },
   {
-    q: 'What are Savings Jars?',
-    a: 'Jars are virtual saving buckets. Allocate a portion of your balance to a jar (e.g. "Bike Trip ₹2000"). The AI will suggest when you are on track to fill a jar and alert you when withdrawals are needed.',
-    icon: '🫙',
+    id: 6,
+    question: 'How do Savings Jars work?',
+    answer:
+      'Create a jar with a name and target amount (e.g. "Goa Trip - ₹5000"). Add money to it manually or enable auto-save which contributes automatically on days you spend under your daily limit.',
   },
   {
-    q: 'Can I undo AI actions?',
-    a: 'Yes! After any action (add expense, update goal, add allowance) you have a 30-second undo window shown in the chat. Just tap "Undo" before the countdown ends.',
-    icon: '↩️',
-  },
-  {
-    q: 'What do the budget grades mean?',
-    a: 'A = Excellent (spent <70% allowance), B = Good (70-85%), C = Average (85-95%), D = Poor (95-100%), F = Failed (>100%). Your grade appears on your Monthly Report.',
-    icon: '📊',
+    id: 7,
+    question: 'How does price tracking work?',
+    answer:
+      "Paste any Amazon, Flipkart, Myntra, Meesho, Nykaa or Ajio product URL. AllowanceAI checks the price every 6 hours. You get notified separately when the price hits your target AND when you can afford it with today's daily limit.",
   },
 ];
 
 export default function HelpPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedFaq, setExpandedFaq] = useState(null);
 
   const filtered = faqs.filter(
     (f) =>
-      f.q.toLowerCase().includes(search.toLowerCase()) ||
-      f.a.toLowerCase().includes(search.toLowerCase())
+      !searchQuery ||
+      f.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.answer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="min-h-screen" style={{ background: '#070b14' }}>
+    <div className="min-h-screen bg-[#070b14]">
       <TopAppBar />
       <div className="pt-16 max-w-2xl mx-auto px-4 pb-16">
-        {/* Header */}
         <div className="flex items-center gap-3 mt-8 mb-6">
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors text-white"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-white">Help & Support</h1>
-            <p className="text-sm" style={{ color: '#8892b0' }}>Find answers or get in touch</p>
+            <h1 className="text-2xl font-bold text-white mb-1">How can we help?</h1>
+            <p className="text-[#8892b0] text-sm">Find answers or contact support</p>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-8">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-xl" style={{ color: '#8892b0' }}>
-            search
-          </span>
+        <div className="relative mb-6">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8892b0]">🔍</span>
           <input
             type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search for help..."
-            className="w-full h-12 rounded-xl pl-12 pr-4 text-sm outline-none"
-            style={{
-              background: 'rgba(15,22,41,0.9)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: '#eef2ff',
-            }}
+            className="w-full bg-[#0f1629] border border-white/10 rounded-2xl py-4 pl-11 pr-4 text-white placeholder:text-[#4a5568] focus:outline-none focus:border-[#6c63ff] transition-colors"
           />
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          <button
-            onClick={() => navigate('/?tab=ai-assistant')}
-            className="p-5 rounded-2xl text-left transition-all hover:scale-[1.02]"
-            style={{ background: 'rgba(108,99,255,0.12)', border: '1px solid rgba(108,99,255,0.2)' }}
-          >
-            <div className="text-3xl mb-2">🤖</div>
-            <p className="font-bold text-white text-sm">Chat with AI</p>
-            <p className="text-xs mt-1" style={{ color: '#8892b0' }}>Get instant answers</p>
-          </button>
-          <a
-            href="mailto:support@allowanceai.com"
-            className="p-5 rounded-2xl text-left transition-all hover:scale-[1.02] block"
-            style={{ background: 'rgba(0,212,177,0.08)', border: '1px solid rgba(0,212,177,0.15)' }}
-          >
-            <div className="text-3xl mb-2">✉️</div>
-            <p className="font-bold text-white text-sm">Email Support</p>
-            <p className="text-xs mt-1" style={{ color: '#8892b0' }}>support@allowanceai.com</p>
-          </a>
-        </div>
+        <div className="space-y-2 mb-8">
+          <p className="text-xs font-bold text-[#8892b0] uppercase tracking-widest mb-3">
+            {searchQuery ? 'Search Results' : 'FAQ'}
+          </p>
 
-        {/* FAQ Accordion */}
-        <p className="text-xs uppercase tracking-widest mb-4 font-bold" style={{ color: '#8892b0' }}>
-          Frequently Asked Questions
-        </p>
-        <div className="space-y-2">
           {filtered.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-4xl mb-2">🔍</p>
-              <p className="text-white font-bold mb-1">No results found</p>
-              <p className="text-sm" style={{ color: '#8892b0' }}>Try a different search term</p>
-            </div>
+            <p className="text-[#8892b0] text-sm py-4">No results for &ldquo;{searchQuery}&rdquo;</p>
           )}
-          {filtered.map((item, i) => (
-            <div
-              key={i}
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: 'rgba(15,22,41,0.8)',
-                border: open === i ? '1px solid rgba(108,99,255,0.3)' : '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
+
+          {filtered.map((faq) => (
+            <div key={faq.id} className="card-elevated rounded-2xl overflow-hidden border border-white/5">
               <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="w-full flex items-center justify-between gap-3 p-4 text-left"
+                type="button"
+                onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{item.icon}</span>
-                  <span className="font-semibold text-white text-sm">{item.q}</span>
-                </div>
+                <span className="font-medium text-white text-sm">{faq.question}</span>
                 <span
-                  className="material-symbols-outlined text-xl flex-shrink-0 transition-transform duration-200"
-                  style={{
-                    color: '#8892b0',
-                    transform: open === i ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}
+                  className={`text-[#6c63ff] transition-transform ${
+                    expandedFaq === faq.id ? 'rotate-180' : ''
+                  }`}
                 >
-                  expand_more
+                  ▾
                 </span>
               </button>
-              {open === i && (
-                <div
-                  className="px-4 pb-4 text-sm leading-relaxed"
-                  style={{ color: '#8892b0', borderTop: '1px solid rgba(255,255,255,0.05)' }}
-                >
-                  <div className="pt-3">{item.a}</div>
+
+              {expandedFaq === faq.id && (
+                <div className="px-4 pb-4 text-sm text-[#8892b0] leading-relaxed border-t border-white/5 pt-3">
+                  {faq.answer}
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-12 pt-8" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div
-            className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3"
-            style={{ background: 'rgba(0,212,177,0.1)', color: '#00d4b1' }}
-          >
-            NEW
-          </div>
-          <h3 className="text-white font-bold mb-1">AI Financial Counselor</h3>
-          <p className="text-sm mb-4" style={{ color: '#8892b0' }}>
-            Get personalised advice for your hostel budget based on your spending patterns.
-          </p>
+        <p className="text-xs font-bold text-[#8892b0] uppercase tracking-widest mb-3">Contact Support</p>
+
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button
+            type="button"
             onClick={() => navigate('/?tab=ai-assistant')}
-            className="btn-primary px-6 py-2 rounded-xl text-sm font-bold"
+            className="card-elevated p-5 rounded-2xl flex flex-col items-center gap-2 hover:border-[#6c63ff]/30 border border-white/5 transition-all hover:-translate-y-0.5"
           >
-            Open AI Chat
+            <span className="text-3xl">🤖</span>
+            <span className="text-sm font-bold text-white">Chat with AI</span>
+            <span className="text-xs text-[#8892b0]">Instant answers</span>
           </button>
-          <p className="text-xs mt-8" style={{ color: '#4a5568' }}>
-            AllowanceAI v2.5.0 · Built for Indian Hostel Students
-          </p>
+
+          <a
+            href="mailto:support@allowanceai.com"
+            className="card-elevated p-5 rounded-2xl flex flex-col items-center gap-2 hover:border-[#00d4b1]/30 border border-white/5 transition-all hover:-translate-y-0.5 no-underline"
+          >
+            <span className="text-3xl">📧</span>
+            <span className="text-sm font-bold text-white">Email Us</span>
+            <span className="text-xs text-[#8892b0]">support@allowanceai.com</span>
+          </a>
         </div>
+
+        <p className="text-center text-xs text-[#4a5568]">
+          AllowanceAI v1.0.0 • Made for hostel students 🎓
+        </p>
       </div>
     </div>
   );

@@ -54,6 +54,18 @@ AGENT RULES:
 8. add_allowance = money already received (increases monthly allowance). request_allowance = only log asking parents — does NOT add money.
 9. create_survival_plan = adaptive plan from REMAINING balance + days left (party reserve, month-end survival). create_budget_plan = fixed monthly category caps (needs confirmation).
 10. Never invent or calculate balances; use CURRENT FINANCIAL STATE numbers only.
+
+CRITICAL INSTRUCTION FOR BUDGET PLANS:
+When user says "assume my daily limit is ₹X" or "make a plan with ₹X per day" — use THAT number,
+not the calculated daily limit from the data.
+The user is overriding the daily limit for planning purposes.
+Base the budget plan on their stated amount.
+
+When creating a create_budget_plan, distribute the MONTHLY equivalent of their stated daily limit:
+- monthly_budget = stated_daily_limit × days_left
+- Distribute across categories proportionally
+- Food: 35%, Transport: 15%, Shopping: 20%,
+  Entertainment: 10%, Health: 10%, Other: 10%
 """
 
 def check_proactive_triggers(category_breakdown: dict, remaining: float, daily_limit: float, days_left: int):

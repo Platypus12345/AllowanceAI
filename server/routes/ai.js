@@ -785,11 +785,45 @@ router.post('/predict', async (req, res) => {
 
 router.post('/tips', async (req, res) => {
   try {
-    const response = await axios.post(`${AI_SERVICE_URL}/tips`, req.body, { timeout: 30000 });
-    res.json(response.data);
+    const userId = req.userId;
+    const expenses = await Expense.find({ userId })
+      .sort({ date: -1 })
+      .limit(50);
+
+    const categoryTotals = {};
+    expenses.forEach((e) => {
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+    });
+
+    const topCategories = Object.entries(categoryTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, amount]) => ({ name, amount }));
+
+    const ctx = await getFinancialContext(userId);
+
+    const response = await axios.post(
+      `${AI_SERVICE_URL}/tips`,
+      {
+        allowance: ctx.allowance,
+        spent: ctx.spent,
+        remaining: ctx.remaining,
+        topCategories,
+        expenses: expenses.map((e) => ({
+          amount: e.amount,
+          category: e.category,
+          description: e.description,
+        })),
+        categoryBreakdown: categoryTotals,
+      },
+      { timeout: 30000 }
+    );
+
+    const tips = response.data?.tips ?? response.data;
+    res.json({ tips: Array.isArray(tips) ? tips : [] });
   } catch (error) {
-    console.error('AI Tips error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch tips from AI' });
+    console.error('Tips error:', error.message);
+    res.status(500).json({ error: 'Could not generate tips' });
   }
 });
 

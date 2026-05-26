@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import html2canvas from 'html2canvas';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { formatRupee } from '../utils/formatters';
 import { ChartSkeleton } from './ui/Skeleton';
+import { toast } from '../utils/toastBus';
 
 const CATEGORY_COLORS = {
   'Food': 'var(--color-secondary)',
@@ -35,22 +35,32 @@ const ReportCard = () => {
     fetchReport();
   }, []);
 
-  const downloadReport = async () => {
-    if (!reportRef.current) return;
+  const handleDownloadReport = async () => {
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        backgroundColor: '#020617',
+      const html2canvas = (await import('html2canvas')).default;
+      const element = document.getElementById('report-content') || reportRef.current;
+
+      if (!element) {
+        toast({ message: 'Nothing to download', type: 'error' });
+        return;
+      }
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#070b14',
         scale: 2,
+        useCORS: true,
         logging: false,
-        useCORS: true
       });
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `AllowanceAI_Report_${report.month}_${report.year}.png`;
-      a.click();
+
+      const link = document.createElement('a');
+      link.download = `allowanceai-report-${new Date().toISOString().slice(0, 7)}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      toast({ message: 'Report downloaded!', type: 'success' });
     } catch (err) {
-      console.error('Failed to download report', err);
+      console.error('Download failed:', err);
+      toast({ message: 'Download failed', type: 'error' });
     }
   };
 
@@ -85,18 +95,18 @@ const ReportCard = () => {
         <button type="button" onClick={() => navigate('/wrapped')} className="glass-card px-4 py-2 rounded-xl text-sm font-bold text-primary-container">
           See Wrapped Version 🎁
         </button>
-        <button 
+        <button
           type="button"
-          onClick={downloadReport}
-          className="btn-primary-container flex items-center gap-2"
+          onClick={handleDownloadReport}
+          className="btn-primary flex items-center gap-2 px-4 py-2"
         >
           <span className="material-symbols-outlined text-xl">download</span>
-          <span>Download Image</span>
+          <span>Download Report</span>
         </button>
         </div>
       </div>
 
-      <div ref={reportRef} className="glass-card p-10 rounded-[3rem] border border-white/10 relative overflow-hidden bg-surface">
+      <div id="report-content" ref={reportRef} className="glass-card p-10 rounded-[3rem] border border-white/10 relative overflow-hidden bg-[#070b14]">
         {/* Background Gradients */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -mr-64 -mt-64" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] -ml-64 -mb-64" />
