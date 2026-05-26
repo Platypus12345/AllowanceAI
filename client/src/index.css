@@ -7,38 +7,53 @@
   --font-space: "Space Grotesk", sans-serif;
 
   /* Colors */
-  --color-background: #0b1326;
-  --color-surface: #0b1326;
-  --color-surface-container: #171f33;
-  --color-surface-container-low: #131b2e;
-  --color-surface-container-high: #222a3d;
-  --color-surface-container-highest: #2d3449;
-  --color-surface-variant: #2d3449;
-  --color-surface-bright: #31394d;
+  --color-background: #070b14;
+  --color-surface: #070b14;
+  --color-surface-container: #0f1629;
+  --color-surface-container-low: #0f1629;
+  --color-surface-container-high: #161f35;
+  --color-surface-container-highest: #1e2a42;
+  --color-surface-variant: #161f35;
+  --color-surface-bright: #1e2a42;
 
-  --color-primary: #c0c1ff;
-  --color-primary-container: #8083ff;
-  --color-on-primary: #1000a9;
-  --color-on-primary-container: #0d0096;
+  --color-primary: #6c63ff;
+  --color-primary-container: #6c63ff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffffff;
 
-  --color-secondary: #44e2cd;
-  --color-secondary-container: #03c6b2;
-  --color-on-secondary: #003731;
-  --color-on-secondary-container: #004d44;
+  --color-secondary: #00d4b1;
+  --color-secondary-container: #00d4b1;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #ffffff;
 
-  --color-tertiary: #ffb690;
-  --color-tertiary-container: #ec6a06;
-  --color-on-tertiary: #552100;
+  --color-tertiary: #f5a623;
+  --color-tertiary-container: #f5a623;
+  --color-on-tertiary: #ffffff;
 
-  --color-error: #ffb4ab;
-  --color-error-container: #93000a;
-  --color-on-error: #690005;
+  --color-error: #ff6b8a;
+  --color-error-container: #ff6b8a;
+  --color-on-error: #ffffff;
 
-  --color-on-surface: #dae2fd;
-  --color-on-surface-variant: #c7c4d7;
-  --color-outline: #908fa0;
-  --color-outline-variant: #464554;
-  --color-inverse-primary: #494bd6;
+  --color-on-surface: #eef2ff;
+  --color-on-surface-variant: #8892b0;
+  --color-outline: #4a5568;
+  --color-outline-variant: #1e2a42;
+  --color-inverse-primary: #6c63ff;
+
+  /* Explicit New Theme Palette Variables */
+  --color-app-bg: #070b14;
+  --color-surface-1: #0f1629;
+  --color-surface-2: #161f35;
+  --color-surface-3: #1e2a42;
+  --color-accent-purple: #6c63ff;
+  --color-accent-teal: #00d4b1;
+  --color-accent-amber: #f5a623;
+  --color-accent-rose: #ff6b8a;
+  --color-text-primary: #eef2ff;
+  --color-text-secondary: #8892b0;
+  --color-text-muted: #4a5568;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-medium: rgba(255, 255, 255, 0.12);
 
   /* Spacing */
   --spacing-container-padding: 20px;
@@ -425,4 +440,93 @@
     overflow: hidden;
     word-break: break-word;
   }
+}
+
+/* New theme specific overrides */
+
+body {
+  background: #070b14 !important;
+  color: #eef2ff !important;
+}
+
+/* Refined glass card override */
+.glass-card {
+  background: rgba(15, 22, 41, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+}
+
+/* Elevated card */
+.card-elevated {
+  background: rgba(22, 31, 53, 0.9) !important;
+  border: 1px solid rgba(108, 99, 255, 0.15) !important;
+  border-radius: 16px !important;
+}
+
+/* Primary gradient button */
+.btn-primary {
+  background: linear-gradient(135deg, #6c63ff, #4f46e5) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  color: white !important;
+  font-weight: 700 !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 4px 20px rgba(108, 99, 255, 0.3) !important;
+}
+.btn-primary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 25px rgba(108, 99, 255, 0.4) !important;
+}
+.btn-primary:active {
+  transform: scale(0.97) !important;
+}
+
+/* Stat number style */
+.stat-number {
+  font-family: 'Space Grotesk', monospace !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Sidebar refinement */
+.sidebar-item {
+  border-radius: 10px !important;
+  transition: all 0.2s !important;
+  color: #8892b0 !important;
+}
+.sidebar-item:hover {
+  background: rgba(108, 99, 255, 0.08) !important;
+  color: #eef2ff !important;
+}
+.sidebar-item.active {
+  background: rgba(108, 99, 255, 0.15) !important;
+  color: #6c63ff !important;
+  border-left: 3px solid #6c63ff !important;
+}
+
+/* Progress bars */
+.progress-bar {
+  height: 6px !important;
+  border-radius: 99px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  overflow: hidden !important;
+}
+.progress-fill {
+  height: 100% !important;
+  border-radius: 99px !important;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px !important;
+}
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 99, 255, 0.3) !important;
+  border-radius: 99px !important;
 }

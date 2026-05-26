@@ -38,7 +38,10 @@ const DashboardPage = () => {
   const [expensesLoading, setExpensesLoading] = useState(true);
 
   const [expenses, setExpenses] = useState([]);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'dashboard';
+  });
   const [pendingSplitCount, setPendingSplitCount] = useState(0);
 
   const showWrappedBanner = (() => {
@@ -67,10 +70,27 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchData();
     api.get('/splits/pending-count').then((r) => setPendingSplitCount(r.data.count || 0)).catch(() => {});
-    return subscribeFinanceUpdated(() => {
+
+    const handleExpenseUpdated = () => {
+      fetchData();
+    };
+    const handleGoalsUpdated = () => {
+      fetchData();
+    };
+
+    window.addEventListener('expense-updated', handleExpenseUpdated);
+    window.addEventListener('goals-updated', handleGoalsUpdated);
+
+    const unsubscribe = subscribeFinanceUpdated(() => {
       fetchData();
       api.get('/splits/pending-count').then((r) => setPendingSplitCount(r.data.count || 0)).catch(() => {});
     });
+
+    return () => {
+      window.removeEventListener('expense-updated', handleExpenseUpdated);
+      window.removeEventListener('goals-updated', handleGoalsUpdated);
+      unsubscribe();
+    };
   }, [fetchData]);
 
   return (
