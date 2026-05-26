@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { dispatchFinanceUpdated } from '../utils/financeEvents';
 import { AITypingIndicator } from './ui/Skeleton';
+import { toast } from '../utils/toastBus';
 
 const UNDO_SECONDS = 30;
 const CHAT_CACHE_KEY = 'allowanceai_smartToyChats';
@@ -103,37 +104,6 @@ const AIChat = () => {
     loadFromServer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const refreshSession = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const { data: session } = await api.get(`/chat/sessions/${sessionId}`);
-      if (session?.messages?.length) {
-        setMessages(mapSessionMessages(session.messages));
-      }
-    } catch (err) {
-      console.error('Failed to refresh session:', err);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    let timer;
-    const handleUpdate = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        refreshSession();
-      }, 500);
-    };
-
-    window.addEventListener('expense-updated', handleUpdate);
-    window.addEventListener('goals-updated', handleUpdate);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('expense-updated', handleUpdate);
-      window.removeEventListener('goals-updated', handleUpdate);
-    };
-  }, [refreshSession]);
 
   useEffect(() => {
     if (!undoState) return;
