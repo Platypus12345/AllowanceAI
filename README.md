@@ -1,7 +1,7 @@
 # AllowanceAI
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/01b492ee-0eb5-49c1-85d6-6fd36a56fd41" />
 
-Live @https://allowance-ai-eight.vercel.app/
+Now Live @https://allowance-ai-eight.vercel.app/
 
 AI-powered personal finance assistant for students — track allowance, expenses, budgets, and get smart coaching with a neon fintech UI. Installable as a PWA on mobile and desktop.
 
