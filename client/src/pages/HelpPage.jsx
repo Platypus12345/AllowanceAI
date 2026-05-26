@@ -1,106 +1,194 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import TopAppBar from '../components/TopAppBar';
 
-const HelpPage = () => {
+const faqs = [
+  {
+    q: 'How does AI prediction work?',
+    a: 'AllowanceAI analyses your historical spending patterns and uses your daily average burn rate to project how much you will spend by month end. It also pulls AI-generated insights from our language model to give personalised recommendations.',
+    icon: '🤖',
+  },
+  {
+    q: 'Is my financial data safe?',
+    a: 'All data is stored in your personal MongoDB account and transmitted over HTTPS. We never share your data with third parties. JWT tokens expire and are rotated regularly.',
+    icon: '🔒',
+  },
+  {
+    q: 'How does SMS tracking work?',
+    a: 'On Android, the app reads bank SMS alerts (e.g. from SBI, HDFC, ICICI) to automatically parse and log expenses. No SMS data ever leaves your device — parsing happens locally.',
+    icon: '📱',
+  },
+  {
+    q: 'What is the Wrapped feature?',
+    a: 'At the start and end of each month, you can view your Monthly Wrapped — a story-like presentation of your spending highlights, best/worst weeks, and an AI-generated financial verdict.',
+    icon: '🎁',
+  },
+  {
+    q: 'How do I request money from parents?',
+    a: 'Go to Profile → Request Allowance. This generates a UPI link and a readable summary. Your parent can approve it via any UPI app. The money shows in your allowance once received.',
+    icon: '💸',
+  },
+  {
+    q: 'What are Savings Jars?',
+    a: 'Jars are virtual saving buckets. Allocate a portion of your balance to a jar (e.g. "Bike Trip ₹2000"). The AI will suggest when you are on track to fill a jar and alert you when withdrawals are needed.',
+    icon: '🫙',
+  },
+  {
+    q: 'Can I undo AI actions?',
+    a: 'Yes! After any action (add expense, update goal, add allowance) you have a 30-second undo window shown in the chat. Just tap "Undo" before the countdown ends.',
+    icon: '↩️',
+  },
+  {
+    q: 'What do the budget grades mean?',
+    a: 'A = Excellent (spent <70% allowance), B = Good (70-85%), C = Average (85-95%), D = Poor (95-100%), F = Failed (>100%). Your grade appears on your Monthly Report.',
+    icon: '📊',
+  },
+];
+
+export default function HelpPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(null);
 
-  const topics = [
-    { icon: 'psychology', color: 'text-indigo-400', bg: 'bg-indigo-400/10', text: 'How does AI prediction work?' },
-    { icon: 'security', color: 'text-secondary', bg: 'bg-secondary/10', text: 'Security & Privacy' },
-    { icon: 'sms', color: 'text-tertiary', bg: 'bg-tertiary/10', text: 'How does SMS tracking work?' },
-  ];
+  const filtered = faqs.filter(
+    (f) =>
+      f.q.toLowerCase().includes(search.toLowerCase()) ||
+      f.a.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen bg-surface p-6 animate-in fade-in duration-500">
-      <div className="max-w-2xl mx-auto">
-        <header className="flex items-center gap-4 mb-10">
-          <button 
+    <div className="min-h-screen" style={{ background: '#070b14' }}>
+      <TopAppBar />
+      <div className="pt-16 max-w-2xl mx-auto px-4 pb-16">
+        {/* Header */}
+        <div className="flex items-center gap-3 mt-8 mb-6">
+          <button
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-white/5 rounded-full transition-colors text-white"
+            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors text-white"
           >
-            <span className="material-symbols-outlined text-3xl">chevron_left</span>
+            <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <h1 className="text-headline-md font-plus font-black text-white">How can we help?</h1>
-        </header>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Help & Support</h1>
+            <p className="text-sm" style={{ color: '#8892b0' }}>Find answers or get in touch</p>
+          </div>
+        </div>
 
-        <div className="relative mb-12">
-          <span className="material-symbols-outlined absolute left-6 top-1/2 -translate-y-1/2 text-on-surface-variant">
+        {/* Search */}
+        <div className="relative mb-8">
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-xl" style={{ color: '#8892b0' }}>
             search
           </span>
           <input
             type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Search for help..."
-            className="w-full h-16 bg-surface-container-high/50 rounded-3xl pl-16 pr-6 text-on-surface font-plus border border-white/5 focus:border-secondary transition-all outline-none"
+            className="w-full h-12 rounded-xl pl-12 pr-4 text-sm outline-none"
+            style={{
+              background: 'rgba(15,22,41,0.9)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: '#eef2ff',
+            }}
           />
         </div>
 
-        <section className="mb-12">
-          <h2 className="text-[10px] font-plus font-black uppercase tracking-widest text-on-surface-variant mb-6 ml-2">
-            Recommended Topics
-          </h2>
-          <div className="space-y-4">
-            {topics.map((topic, idx) => (
-              <div 
-                key={idx}
-                className="glass-card p-6 rounded-[2rem] flex items-center justify-between cursor-pointer group hover:bg-white/5 transition-all border border-white/5"
-              >
-                <div className="flex items-center gap-6">
-                  <div className={`w-12 h-12 rounded-2xl ${topic.bg} flex items-center justify-center ${topic.color}`}>
-                    <span className="material-symbols-outlined filled text-2xl">{topic.icon}</span>
-                  </div>
-                  <span className="text-white font-plus font-bold">{topic.text}</span>
-                </div>
-                <span className="material-symbols-outlined text-slate-500 group-hover:text-white transition-colors">
-                  chevron_right
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="grid grid-cols-2 gap-6 mb-12">
-          <button 
-            onClick={() => navigate('/ai-assistant')} // Assuming ai-assistant tab mapping
-            className="bg-primary-container p-10 rounded-[3rem] flex flex-col items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all text-on-primary-container"
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <button
+            onClick={() => navigate('/?tab=ai-assistant')}
+            className="p-5 rounded-2xl text-left transition-all hover:scale-[1.02]"
+            style={{ background: 'rgba(108,99,255,0.12)', border: '1px solid rgba(108,99,255,0.2)' }}
           >
-            <span className="material-symbols-outlined text-5xl filled">smart_toy</span>
-            <span className="text-xs font-plus font-black uppercase tracking-widest">Chat with AI</span>
+            <div className="text-3xl mb-2">🤖</div>
+            <p className="font-bold text-white text-sm">Chat with AI</p>
+            <p className="text-xs mt-1" style={{ color: '#8892b0' }}>Get instant answers</p>
           </button>
-
-          <a 
+          <a
             href="mailto:support@allowanceai.com"
-            className="glass-card p-10 rounded-[3rem] flex flex-col items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all border border-white/10"
+            className="p-5 rounded-2xl text-left transition-all hover:scale-[1.02] block"
+            style={{ background: 'rgba(0,212,177,0.08)', border: '1px solid rgba(0,212,177,0.15)' }}
           >
-            <span className="material-symbols-outlined text-5xl text-secondary">mail</span>
-            <span className="text-xs font-plus font-black uppercase tracking-widest text-white">Email us</span>
+            <div className="text-3xl mb-2">✉️</div>
+            <p className="font-bold text-white text-sm">Email Support</p>
+            <p className="text-xs mt-1" style={{ color: '#8892b0' }}>support@allowanceai.com</p>
           </a>
         </div>
 
-        <div className="glass-card rounded-[3rem] p-10 relative overflow-hidden mb-16 min-h-[200px] flex flex-col justify-center border border-white/10">
-          {/* Blobs */}
-          <div className="absolute top-0 left-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-32 h-32 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="relative z-10">
-            <span className="inline-block bg-secondary/20 text-secondary text-[10px] font-plus font-black px-3 py-1 rounded-lg mb-6">
-              NEW
-            </span>
-            <h3 className="text-2xl font-plus font-black text-white mb-2">AI Financial Counselor</h3>
-            <p className="text-slate-400 text-sm max-w-sm leading-relaxed">
-              Get personalized advice for your hostel budget based on your spending patterns.
-            </p>
-          </div>
+        {/* FAQ Accordion */}
+        <p className="text-xs uppercase tracking-widest mb-4 font-bold" style={{ color: '#8892b0' }}>
+          Frequently Asked Questions
+        </p>
+        <div className="space-y-2">
+          {filtered.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-4xl mb-2">🔍</p>
+              <p className="text-white font-bold mb-1">No results found</p>
+              <p className="text-sm" style={{ color: '#8892b0' }}>Try a different search term</p>
+            </div>
+          )}
+          {filtered.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: 'rgba(15,22,41,0.8)',
+                border: open === i ? '1px solid rgba(108,99,255,0.3)' : '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="w-full flex items-center justify-between gap-3 p-4 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="font-semibold text-white text-sm">{item.q}</span>
+                </div>
+                <span
+                  className="material-symbols-outlined text-xl flex-shrink-0 transition-transform duration-200"
+                  style={{
+                    color: '#8892b0',
+                    transform: open === i ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  expand_more
+                </span>
+              </button>
+              {open === i && (
+                <div
+                  className="px-4 pb-4 text-sm leading-relaxed"
+                  style={{ color: '#8892b0', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <div className="pt-3">{item.a}</div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        <footer className="text-center pb-10">
-          <p className="text-slate-500 font-plus text-xs">v2.4.0 (Stable Release)</p>
-          <p className="text-slate-600 font-plus font-black text-[10px] uppercase tracking-widest mt-1">
-            Designed for Hostel Life in India
+        {/* Footer */}
+        <div className="text-center mt-12 pt-8" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div
+            className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3"
+            style={{ background: 'rgba(0,212,177,0.1)', color: '#00d4b1' }}
+          >
+            NEW
+          </div>
+          <h3 className="text-white font-bold mb-1">AI Financial Counselor</h3>
+          <p className="text-sm mb-4" style={{ color: '#8892b0' }}>
+            Get personalised advice for your hostel budget based on your spending patterns.
           </p>
-        </footer>
+          <button
+            onClick={() => navigate('/?tab=ai-assistant')}
+            className="btn-primary px-6 py-2 rounded-xl text-sm font-bold"
+          >
+            Open AI Chat
+          </button>
+          <p className="text-xs mt-8" style={{ color: '#4a5568' }}>
+            AllowanceAI v2.5.0 · Built for Indian Hostel Students
+          </p>
+        </div>
       </div>
     </div>
   );
-};
-
-export default HelpPage;
+}

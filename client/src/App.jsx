@@ -9,7 +9,7 @@ import HelpPage from './pages/HelpPage';
 import RequestMoneyPage from './pages/RequestMoneyPage';
 import SMSSyncPage from './pages/SMSSyncPage';
 import ProtectedRoute from './pages/ProtectedRoute';
-import AmbientBackground from './components/AmbientBackground';
+import AppLayout from './components/AppLayout';
 import { ToastProvider } from './components/ui/Toast';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import WrappedPage from './pages/WrappedPage';
@@ -20,7 +20,7 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-      <AmbientBackground />
+      <AppLayout>
       <PWAInstallBanner />
       <BrowserRouter>
         <Routes>
@@ -75,10 +75,10 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </AppLayout>
       </ToastProvider>
     </AuthProvider>
   );
 }
-
 
 export default App;

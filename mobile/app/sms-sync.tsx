@@ -179,24 +179,22 @@ export default function SMSSyncScreen() {
           <Text style={styles.testButtonText}>{testing ? 'Syncing...' : 'Test Sync'}</Text>
         </TouchableOpacity>
 
-        {Platform.OS === 'android' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>TEST SMS PARSER</Text>
-            {testSMSMessages.map((test) => (
-              <TouchableOpacity
-                key={test.label}
-                style={styles.testParseRow}
-                activeOpacity={0.7}
-                onPress={() => handleTestParse(test)}
-              >
-                <BlurView intensity={10} tint="dark" style={styles.testParseBlur}>
-                  <Text style={styles.channelName}>{test.label}</Text>
-                  <Text style={styles.testParseArrow}>Test →</Text>
-                </BlurView>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>TEST SMS PARSER</Text>
+          {testSMSMessages.map((test) => (
+            <TouchableOpacity
+              key={test.label}
+              style={styles.testParseRow}
+              activeOpacity={0.7}
+              onPress={() => handleTestParse(test)}
+            >
+              <BlurView intensity={10} tint="dark" style={styles.testParseBlur}>
+                <Text style={styles.channelName}>{test.label}</Text>
+                <Text style={styles.testParseArrow}>Test →</Text>
+              </BlurView>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={styles.privacyCard}>
            <BlurView intensity={20} tint="dark" style={styles.privacyBlur}>
