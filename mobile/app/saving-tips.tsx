@@ -4,8 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { postAiTips } from '@/src/api/budgetClient';
-import api from '@/src/api/axios';
+import { postAiTips, fetchBudgetStats } from '@/src/api/budgetClient';
 import { Colors, Fonts } from '@/constants/theme';
 
 export default function SavingTipsScreen() {
@@ -16,9 +15,8 @@ export default function SavingTipsScreen() {
 
   const fetchTips = useCallback(async () => {
     try {
-      const statsRes = await api.get('/api/budget/stats');
-      const stats = statsRes.data;
-      const topCategories = stats.chartData.map((c: any) => c.name);
+      const stats = await fetchBudgetStats();
+      const topCategories = stats.chartData ? stats.chartData.map((c: any) => c.name) : [];
 
       const res = await postAiTips({
         allowance: stats.totalAllowance,
