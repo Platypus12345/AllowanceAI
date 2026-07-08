@@ -6,7 +6,7 @@ AI-powered personal finance assistant for students — track allowance, expenses
 
 | Service | URL |
 |---------|-----|
-| **Web app  | https://allowance-ai-eight.vercel.app |
+| **Web app** | https://allowance-ai-eight.vercel.app |
 | **API** | `https://allowanceai-api.onrender.com` (after Render blueprint) |
 | **AI service** | `https://allowanceai-ai.onrender.com` |
 | **GitHub** | https://github.com/Platypus12345/AllowanceAI |
