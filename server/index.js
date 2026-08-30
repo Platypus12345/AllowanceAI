@@ -36,9 +36,14 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(passport.initialize());
 
-// Health check route
+// Health check — available as soon as HTTP listens (before Mongo finishes connecting)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  const dbReady = mongoose.connection.readyState === 1;
+  res.json({
+    status: 'ok',
+    dbReady,
+    timestamp: new Date(),
+  });
 });
 
 // Routes
@@ -181,15 +186,24 @@ cron.schedule('0 */6 * * *', async () => {
 
 const PORT = process.env.PORT || 5000;
 
-connectDatabase()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`CLIENT_URL redirect base: ${getClientBaseUrl()}`);
-      console.log(`Google callback: ${getGoogleCallbackUrl()}`);
+// Listen immediately so Render cold-start stops showing the loading page.
+// MongoDB connects in the background; auth/data routes need dbReady.
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`CLIENT_URL redirect base: ${getClientBaseUrl()}`);
+  console.log(`Google callback: ${getGoogleCallbackUrl()}`);
+
+  connectDatabase()
+    .then(() => {
+      console.log('Database ready');
+    })
+    .catch((err) => {
+      console.error('MongoDB connection error:', err.message);
+      // Keep serving /api/health so the instance stays up; retry shortly
+      setTimeout(() => {
+        connectDatabase().catch((retryErr) => {
+          console.error('MongoDB retry failed:', retryErr.message);
+        });
+      }, 5000);
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+});
