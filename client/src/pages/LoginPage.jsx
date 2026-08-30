@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -6,11 +6,38 @@ import { validateRegistration } from '../utils/validation';
 import { toast } from '../utils/toastBus';
 
 export default function LoginPage() {
-  const { user, loginWithGoogle, refreshAuth } = useAuth();
+  const { user, loginWithGoogle, googleLoginLoading, cancelGoogleLoginLoading, refreshAuth } = useAuth();
   const [view, setView] = useState('landing');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get('error');
+    if (authError === 'auth_failed') {
+      setError('Google sign-in failed. Please try again.');
+      window.history.replaceState({}, '', '/login');
+    }
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    const result = await loginWithGoogle();
+    if (result?.ok === false) {
+      cancelGoogleLoginLoading();
+      if (result.reason === 'api_cold_start') {
+        setError('Server is waking up — this can take up to a minute on free hosting. Please try again.');
+        toast({
+          message: 'Server is still starting. Wait a moment and tap Google again.',
+          type: 'error',
+        });
+      } else {
+        setError('Could not connect to the server. Please try again.');
+        toast({ message: 'Could not connect to the server.', type: 'error' });
+      }
+    }
+  };
 
   const [signupData, setSignupData] = useState({
     name: '',
@@ -145,18 +172,32 @@ export default function LoginPage() {
             ))}
           </div>
 
+          {error ? (
+            <p className="mb-3 text-sm text-red-400 font-plus text-center">{error}</p>
+          ) : null}
+
           <div className="space-y-3">
             <button
               type="button"
-              onClick={loginWithGoogle}
-              className="w-full h-14 bg-white text-slate-900 rounded-2xl flex items-center justify-center gap-3 font-plus font-bold text-base active:scale-95 transition-all"
+              onClick={handleGoogleLogin}
+              disabled={googleLoginLoading}
+              className="w-full h-14 bg-white text-slate-900 rounded-2xl flex items-center justify-center gap-3 font-plus font-bold text-base active:scale-95 transition-all disabled:opacity-70 disabled:cursor-wait"
             >
-              <img
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt="Google"
-                className="w-5 h-5"
-              />
-              Continue with Google
+              {googleLoginLoading ? (
+                <>
+                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  Waking up server…
+                </>
+              ) : (
+                <>
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google"
+                    className="w-5 h-5"
+                  />
+                  Continue with Google
+                </>
+              )}
             </button>
 
             <button
