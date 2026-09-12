@@ -8,19 +8,21 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] Restructure repo into client/server/ai-service/mobile (Phase 0)
-- [ ] Write docker-compose.yml (postgres/pgvector, redis, rabbitmq) (Phase 0)
-- [ ] GitHub Actions lint+test stub (Phase 0)
-- [ ] .env.example per service (Phase 0)
+_(Phase 0 tasks moved to In Progress — see below)_
 
 ## In Progress
-_(empty — nothing started yet)_
+- [/] Restructure repo into client/server/ai-service/mobile (Phase 0) — folders already exist from v1; verifying and finalising layout
+- [/] Write docker-compose.yml (postgres/pgvector, redis, rabbitmq) (Phase 0)
+- [/] GitHub Actions lint+test stub (Phase 0)
+- [/] .env.example per service (Phase 0)
 
 ## Review
 _(empty)_
 
 ## Done
-_(empty — this is a fresh rebuild)_
+- [x] Reorganize planning docs into docs/ and root working files (Tracker.md, Rules.md)
+- [x] Create AGENTS.md with persistent project instructions
+- [x] Commit + push to github.com/Platypus12345/AllowanceAI
 
 ---
 
