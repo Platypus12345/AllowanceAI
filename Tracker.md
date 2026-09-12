@@ -8,21 +8,27 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-_(Phase 0 tasks moved to In Progress — see below)_
+_(Phase 1 tasks — pending Phase 0 DoD verification)_
+- [ ] Implement PostgreSQL schema via migrations (Phase 1)
+- [ ] JWT + Google OAuth auth (Phase 1)
+- [ ] Basic CRUD for categories/budgets/goals (Phase 1)
 
 ## In Progress
-- [/] Restructure repo into client/server/ai-service/mobile (Phase 0) — folders already exist from v1; verifying and finalising layout
-- [/] Write docker-compose.yml (postgres/pgvector, redis, rabbitmq) (Phase 0)
-- [/] GitHub Actions lint+test stub (Phase 0)
-- [/] .env.example per service (Phase 0)
+_(empty — Phase 0 code complete; pending push-to-GitHub unblock — see note below)_
 
 ## Review
-_(empty)_
+- [ ] **Phase 0** — `docker-compose up` starts all services; CI runs green on empty test suite.
+  - ⚠️ Push blocked: GitHub token missing `workflow` scope. Commit `e24d853` is local and ready.
+    Run `gh auth login` (with workflow scope) or use a PAT to unblock push.
 
 ## Done
 - [x] Reorganize planning docs into docs/ and root working files (Tracker.md, Rules.md)
 - [x] Create AGENTS.md with persistent project instructions
-- [x] Commit + push to github.com/Platypus12345/AllowanceAI
+- [x] Commit + push to github.com/Platypus12345/AllowanceAI (commit 79161e7)
+- [x] Restructure repo into client/server/ai-service/mobile (Phase 0) — layout confirmed correct from v1
+- [x] Write docker-compose.yml (postgres/pgvector:pg16, redis:7, rabbitmq:3 with healthchecks) (Phase 0)
+- [x] GitHub Actions lint+test CI stub — server/ai-service/client parallel jobs (Phase 0)
+- [x] .env.example per service — server, ai-service, mobile all v2-aligned (Phase 0)
 
 ---
 
