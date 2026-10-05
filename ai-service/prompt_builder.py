@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
 
 class FinancialContext(BaseModel):
     allowance: float
@@ -81,7 +80,7 @@ def check_proactive_triggers(category_breakdown: dict, remaining: float, daily_l
     if days_left > 5 and remaining < projected_spend * 0.7:
         suggestions.append({
             "type": "survival_warning",
-            "message": f"At your current pace, you may run out before month end. Want me to create a rescue budget plan?",
+            "message": "At your current pace, you may run out before month end. Want me to create a rescue budget plan?",
             "action": "create_budget_plan",
         })
 
