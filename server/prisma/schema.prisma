@@ -1,0 +1,167 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String          @id @default(uuid()) @db.Uuid
+  email            String          @unique
+  passwordHash     String?         @map("password_hash")
+  googleId         String?         @unique @map("google_id")
+  monthlyAllowance Decimal?        @map("monthly_allowance") @db.Decimal(12, 2)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamp()
+
+  linkedAccounts   LinkedAccount[]
+  categories       Category[]
+  transactions     Transaction[]
+  budgets          Budget[]
+  goals            Goal[]
+  userBadges       UserBadge[]
+  notifications    Notification[]
+  documents        Document[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model LinkedAccount {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  source        String        // 'sms' | 'setu_aa' | 'gmail' | 'manual'
+  consentHandle String?       @map("consent_handle")
+  status        String        @default("active")
+  linkedAt      DateTime      @default(now()) @map("linked_at") @db.Timestamp()
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@map("linked_accounts")
+}
+
+model Category {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String?       @map("user_id") @db.Uuid
+  name         String
+  isDefault    Boolean       @default(false) @map("is_default")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@map("categories")
+}
+
+model Transaction {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  linkedAccountId String?        @map("linked_account_id") @db.Uuid
+  amount          Decimal        @db.Decimal(12, 2)
+  merchant        String?
+  categoryId      String?        @map("category_id") @db.Uuid
+  source          String
+  isRecurring     Boolean        @default(false) @map("is_recurring")
+  isDuplicateFlag Boolean        @default(false) @map("is_duplicate_flag")
+  rawText         String?        @map("raw_text")
+  occurredAt      DateTime       @map("occurred_at") @db.Timestamp()
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp()
+
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount   LinkedAccount? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  category        Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@map("transactions")
+}
+
+model Budget {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  categoryId String?   @map("category_id") @db.Uuid
+  amount     Decimal   @db.Decimal(12, 2)
+  period     String    @default("monthly")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp()
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("budgets")
+}
+
+model Goal {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  title         String
+  targetAmount  Decimal   @map("target_amount") @db.Decimal(12, 2)
+  currentAmount Decimal   @default(0) @map("current_amount") @db.Decimal(12, 2)
+  targetDate    DateTime? @map("target_date") @db.Date
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+model Badge {
+  id          String      @id @default(uuid()) @db.Uuid
+  code        String      @unique
+  title       String
+  description String?
+
+  userBadges  UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  userId   String   @map("user_id") @db.Uuid
+  badgeId  String   @map("badge_id") @db.Uuid
+  earnedAt DateTime @default(now()) @map("earned_at") @db.Timestamp()
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  payload   Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp()
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Document {
+  id         Int                          @id @default(autoincrement())
+  userId     String                       @map("user_id") @db.Uuid
+  sourceType String                       @map("source_type")
+  sourceId   String?                      @map("source_id") @db.Uuid
+  chunkText  String                       @map("chunk_text")
+  embedding  Unsupported("vector(384)")?
+  createdAt  DateTime                     @default(now()) @map("created_at") @db.Timestamp()
+
+  user       User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp()
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_log")
+}

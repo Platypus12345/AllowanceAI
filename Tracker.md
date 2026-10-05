@@ -8,11 +8,10 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] JWT + Google OAuth auth (Phase 1)
-- [ ] Basic CRUD for categories/budgets/goals (Phase 1)
+_(empty)_
 
 ## In Progress
-- [ ] Implement PostgreSQL schema via migrations (Phase 1)
+_(empty)_
 
 ## Review
 _(empty)_
@@ -26,6 +25,10 @@ _(empty)_
 - [x] GitHub Actions lint+test CI stub — server/ai-service/client parallel jobs (Phase 0)
 - [x] .env.example per service — server, ai-service, mobile all v2-aligned (Phase 0)
 - [x] **Phase 0** — `docker-compose up` starts all services; CI runs green on empty test suite (CI run 37349814775 green)
+- [x] Implement PostgreSQL schema via migrations with Prisma & pgvector (Phase 1)
+- [x] JWT + Google OAuth auth backed by PostgreSQL users table (Phase 1)
+- [x] Basic CRUD for categories/budgets/goals (Phase 1)
+- [x] Automated unit test suite for auth & CRUD routes (Phase 1)
 
 ---
 

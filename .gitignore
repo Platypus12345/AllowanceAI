@@ -15,6 +15,7 @@ dist-ssr/
 build/
 .expo/
 mobile/.expo/
+mobile/.expo-tmp-bundle/
 
 # Python
 ai-service/venv/

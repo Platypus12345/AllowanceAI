@@ -27,6 +27,9 @@ const userRoutes = require('./routes/user');
 const analyticsRoutes = require('./routes/analytics');
 const jarsRoutes = require('./routes/jars');
 const wishlistRoutes = require('./routes/wishlist');
+const categoryRoutes = require('./routes/categories');
+const budgetsRoutes = require('./routes/budgets');
+const goalsRoutes = require('./routes/goals');
 const { runAutoContribute } = require('./routes/jars');
 const { runCheckPrices } = require('./routes/wishlist');
 
@@ -66,6 +69,9 @@ app.use('/api/user', userRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/jars', jarsRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/budgets', budgetsRoutes);
+app.use('/api/goals', goalsRoutes);
 
 const cron = require('node-cron');
 const RecurringExpense = require('./models/RecurringExpense');
