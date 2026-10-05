@@ -8,18 +8,14 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-_(Phase 1 tasks — pending Phase 0 DoD verification)_
-- [ ] Implement PostgreSQL schema via migrations (Phase 1)
 - [ ] JWT + Google OAuth auth (Phase 1)
 - [ ] Basic CRUD for categories/budgets/goals (Phase 1)
 
 ## In Progress
-_(empty — Phase 0 code complete; pending push-to-GitHub unblock — see note below)_
+- [ ] Implement PostgreSQL schema via migrations (Phase 1)
 
 ## Review
-- [ ] **Phase 0** — `docker-compose up` starts all services; CI runs green on empty test suite.
-  - ⚠️ Push blocked: GitHub token missing `workflow` scope. Commit `e24d853` is local and ready.
-    Run `gh auth login` (with workflow scope) or use a PAT to unblock push.
+_(empty)_
 
 ## Done
 - [x] Reorganize planning docs into docs/ and root working files (Tracker.md, Rules.md)
@@ -29,6 +25,7 @@ _(empty — Phase 0 code complete; pending push-to-GitHub unblock — see note b
 - [x] Write docker-compose.yml (postgres/pgvector:pg16, redis:7, rabbitmq:3 with healthchecks) (Phase 0)
 - [x] GitHub Actions lint+test CI stub — server/ai-service/client parallel jobs (Phase 0)
 - [x] .env.example per service — server, ai-service, mobile all v2-aligned (Phase 0)
+- [x] **Phase 0** — `docker-compose up` starts all services; CI runs green on empty test suite (CI run 37349814775 green)
 
 ---
 
