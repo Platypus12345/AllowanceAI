@@ -14,6 +14,23 @@ jobs:
     defaults:
       run:
         working-directory: server
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: allowance
+          POSTGRES_PASSWORD: allowance_dev_secret
+          POSTGRES_DB: allowanceai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U allowance -d allowanceai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://allowance:allowance_dev_secret@127.0.0.1:5432/allowanceai
+      JWT_SECRET: test_jwt_secret_for_phase_1
 
     steps:
       - uses: actions/checkout@v4

@@ -10,12 +10,21 @@ Each phase has a goal, key tasks, dependencies, and a definition of done. Don't 
 - `.env.example` per service
 **DoD:** `docker-compose up` starts all services; CI runs green on an empty test suite.
 
+What CI verifies (`/.github/workflows/ci.yml`): server `npm test` (no `lint` script, so lint is skipped) against a job-level `pgvector/pgvector:pg16` service on **5432** (no native Postgres on the runner). Local compose maps host **5433→5432** so a machine Postgres on 5432 is left alone. ai-service: ruff + pytest (pytest may stub-pass). client: lint + `vite` build. Green CI still is not a substitute for reading the persistence test output.
+
 ## Phase 1 — Auth + core schema
 **Goal:** users can sign up/log in; core tables exist.
 - Implement schema (Schema.md) via migrations
 - JWT + Google OAuth (kept from v1)
 - Basic CRUD for categories/budgets/goals
-**DoD:** can create an account, log in, create a budget, see it persisted in Postgres.
+**DoD (persistence — required, not optional):** a test against the **real** Postgres from `docker-compose.yml` (or the same `pgvector/pgvector:pg16` image in CI) that:
+  1. Applies Prisma migrations to that database
+  2. `POST /api/auth/register` creates a `users` row
+  3. `POST /api/auth/login` returns a JWT for that user
+  4. `POST /api/budgets` writes a `budgets` row
+  5. The budget is read back **twice**: via `GET /api/budgets` and via a separate Prisma/`SELECT` against Postgres (no mocked Prisma, no in-memory store)
+
+Lint or request-validation tests alone do not meet this DoD.
 
 ## Phase 2 — Data ingestion
 **Goal:** transactions appear without manual entry.
