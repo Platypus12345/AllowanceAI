@@ -4,14 +4,19 @@
 
 ## Backlog
 - [ ] Gmail email-parsing fallback ingestion (Phase 2, optional)
+- [ ] Prove Google OAuth persist a `users.google_id` row (Phase 1 leftover — register/login DoD did not cover OAuth)
+- [ ] Persistence read-back tests for categories and goals CRUD (Phase 1 leftover — only budgets were in the DoD test)
+- [ ] Seed default categories (`is_default`) so a new user has system categories without creating them by hand
+- [ ] Prove Redis + RabbitMQ healthy via `docker compose up` (Phase 0 leftover — only Postgres health was re-verified this cycle)
 - [ ] Minikube demo folder (Phase 8, optional, resume-signal only)
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-_(empty)_
+- [ ] Phase 2: Setu AA sandbox adapter — consent_handle persist + recorded sandbox FI JSON → `transactions`
+- [ ] Phase 2: Duplicate detection on ingest (same spend / SMS then AA) with synthetic fixtures only
 
 ## In Progress
-_(empty)_
+- [ ] Phase 2: SMS parser + authenticated ingest into Postgres `transactions` (source=`sms`)
 
 ## Review
 _(empty)_
