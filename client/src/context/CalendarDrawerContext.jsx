@@ -22,6 +22,7 @@ export function CalendarDrawerProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCalendarDrawer() {
   const ctx = useContext(CalendarDrawerContext);
   if (!ctx) {

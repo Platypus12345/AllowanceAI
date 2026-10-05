@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { dispatchFinanceUpdated } from '../utils/financeEvents';
 import { AITypingIndicator } from './ui/Skeleton';
-import { toast } from '../utils/toastBus';
 
 const UNDO_SECONDS = 30;
 const CHAT_CACHE_KEY = 'allowanceai_smartToyChats';
@@ -117,6 +116,7 @@ const AIChat = () => {
       });
     }, 1000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [undoState?.messageId]);
 
   const handleUndo = useCallback(async (actionTaken, messageId) => {

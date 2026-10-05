@@ -42,7 +42,7 @@ const ExpenseForm = ({ onExpenseAdded }) => {
         if (confirmed) {
           try {
             await submitExpense({ amount, category, description: description.trim(), force: true });
-          } catch (retryErr) {
+          } catch {
             toast({ message: 'Failed to add expense', type: 'error' });
           }
         }

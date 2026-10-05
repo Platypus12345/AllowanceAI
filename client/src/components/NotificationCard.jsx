@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { SEVERITY_STYLES, formatRelativeTime } from '../data/notifications';
 
 const NotificationCard = ({ notification, index, onRead }) => {

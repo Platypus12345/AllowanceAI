@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import api from '../api/axios';
 import { useNotificationDrawer } from '../context/NotificationDrawerContext';

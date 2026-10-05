@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useNotificationDrawer } from '../context/NotificationDrawerContext';
 

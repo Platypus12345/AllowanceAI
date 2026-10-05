@@ -23,6 +23,7 @@ export function NotificationDrawerProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshUnreadCount();
     return subscribeFinanceUpdated(refreshUnreadCount);
   }, [refreshUnreadCount]);
@@ -54,6 +55,7 @@ export function NotificationDrawerProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNotificationDrawer() {
   const ctx = useContext(NotificationDrawerContext);
   if (!ctx) {

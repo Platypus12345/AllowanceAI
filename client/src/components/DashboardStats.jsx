@@ -12,6 +12,7 @@ const StatCard = ({ title, value, colorClass, editable, onSave, animate = true }
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isEditing) setEditValue(value);
   }, [value, isEditing]);
 

@@ -153,7 +153,7 @@ const SplitsTab = () => {
       ]);
       setFriends(friendsRes.data);
       setSplitData(splitsRes.data);
-    } catch (err) {
+    } catch {
       toast({ message: 'Failed to load splits', type: 'error' });
     } finally {
       setLoading(false);
