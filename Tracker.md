@@ -4,15 +4,12 @@
 
 ## Backlog
 - [ ] Gmail email-parsing fallback ingestion (Phase 2, optional)
+- [ ] Add a partial unique index on `categories(name) WHERE is_default AND user_id IS NULL` so the default seed is race-proof at the database level, not only in application logic.
 - [ ] `LoginPage.jsx` posts to `/api/auth/forgot-password`, which no longer exists on the Prisma auth router -> 404. Password reset is dead until the Phase 3 frontend rebuild.
 - [ ] v1 client/mobile screens (expenses, jars, splits, wishlist, friends, ...) still call Mongoose routes, so they fail when `MONGO_URI` is absent. Either port them to Prisma or hide them until Phase 3.
 - [ ] Prisma 6 -> 7 upgrade: v7 moves the direct/migration URL out of `schema.prisma` into `prisma.config.ts`. Deliberately NOT done the night before the mid-term demo.
-- [ ] Remove the `version:` key from docker-compose.yml (Compose warns it is obsolete and ignored).
 - [ ] Live Setu AA sandbox consent click-through in the web client (Phase 2 leftover — server consent + fixture ingest passed; browser OAuth not built)
 - [ ] RabbitMQ async ingest (Phase 2 leftover — ingest is synchronous; DoD only required a durable `transactions` row)
-- [ ] Prove Google OAuth persist a `users.google_id` row (Phase 1 leftover — register/login DoD did not cover OAuth)
-- [ ] Persistence read-back tests for categories and goals CRUD (Phase 1 leftover — only budgets were in the DoD test)
-- [ ] Seed default categories (`is_default`) so a new user has system categories without creating them by hand
 - [ ] Minikube demo folder (Phase 8, optional, resume-signal only)
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
@@ -45,6 +42,30 @@ _(empty)_
 - [x] Phase 0 leftover: Redis + RabbitMQ proven healthy, not just declared — `docker compose ps` shows all three `(healthy)`; `redis-cli ping` -> `PONG`; `rabbitmq-diagnostics ping` -> `Ping succeeded` and `check_running` -> `fully booted and running`. Postgres reports `pgvector 0.8.7` in schema `public`.
 - [x] **Production login unblocked** — `/api/health` now reports PostgreSQL via a real `SELECT 1`, not `mongoose.readyState`. The client `wakeApiServer` gates Google login on `dbReady`, so a dead/absent Mongo was blocking a login path that never touches Mongo. Live before: `{"dbReady":false}`. Local after, with `MONGO_URI` unset: `{"status":"ok","dbReady":true,"db":"postgres","legacyMongoReady":false}`.
 - [x] `render.yaml` / `.env.example` / `schema.prisma` document `DATABASE_URL` + `DIRECT_URL` for the Supabase pooler. Verified on Prisma 6.19.3: `migrate deploy` without `DIRECT_URL` fails `P1012`, `generate` does not — so CI got `DIRECT_URL` and the Render build is unaffected. No secrets in the repo.
+- [x] Phase 1 leftover: **Google OAuth persistence proven** — drives the real `config/passport.js` verify callback against live Postgres. Covers first sign-in (writes `google_id`, no password hash), linking onto an existing email/password row without duplicating it or wiping the hash, a returning user matched by `google_id`, and a no-email profile rejected leaving no row. Negative control: removing `googleId` from `create()` makes it fail on the raw SELECT.
+- [x] Phase 1 leftover: **categories + goals read-back tests** — the original DoD only covered budgets. Create/rename/delete and goal progress each read back via API **and** literal SQL. Also pins per-user isolation (cross-user GET returns nothing; cross-user PUT/DELETE 404).
+- [x] **Security fix: `is_default` privilege escalation** — `POST /api/categories` trusted a client-supplied `isDefault`, and `GET` returns every `is_default = true` row regardless of owner, so any user could publish a category into every other user’s list. Route now always writes `isDefault: false`. Caught by the new test, which failed `true !== false` before the fix.
+- [x] Phase 1 leftover: **default categories seeded** — `npm run seed:categories` (idempotent, supports `--dry-run`) creates Food/Transport/Shopping/Entertainment/Health/Other as system rows (`user_id IS NULL`). Proven: rows land, a second run adds nothing and leaves no duplicate name, and a brand-new registered user sees all six via the API without creating anything.
+- [x] Phase 0 tidy: removed the obsolete `version:` key from `docker-compose.yml` — `docker compose config` now validates with no warnings, so real warnings stop being buried.
+
+### Phase 1 leftovers closed (2026-11-09)
+
+Full server suite against live compose Postgres (host **5433**, `(healthy)`), no mocks:
+
+```
+ℹ tests 28
+ℹ suites 10
+ℹ pass 28
+ℹ fail 0
+```
+
+Up from 14 tests. The four new suites are `phase1.oauth.persistence`,
+`phase1.crud.persistence`, `phase1.seed.persistence` and the existing Phase 1/2 ones.
+Three Phase 1 leftovers and one Phase 0 tidy moved to Done, and one real security bug
+was found and fixed in the process (`is_default` escalation) — the kind of thing the
+original budgets-only DoD could not have surfaced.
+
+---
 
 ### Phase 2 DoD evidence (2026-11-09)
 

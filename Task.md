@@ -4,7 +4,7 @@ This is your checklist. Claude keeps it updated; it holds **only** the steps tha
 your hands (dashboards, secrets, browser clicks). Everything Claude can do itself goes in
 [Tracker.md](Tracker.md) instead.
 
-Last updated: 2026-11-09, after pushing `86b2852`.
+Last updated: 2026-11-09, after pushing `baa91c9`. Full server suite: **28 tests, 28 pass, 0 fail.**
 
 **Never paste a password, connection string or API key into chat.** Set them in the
 provider dashboards yourself. Nothing secret belongs in this repo.
@@ -157,6 +157,26 @@ code for these until you say so.
 
 ---
 
+## 🔵 OPTIONAL — after step 2 succeeds
+
+### [ ] Seed the default categories on Supabase
+
+New accounts otherwise land on an empty category list. Safe to re-run, and it never
+touches a user’s own categories. Check first, then write:
+
+```powershell
+cd C:UsersAdityaDesktopAllowanceAIallowance-aiserver
+$env:DATABASE_URL = "<6543 pooler URL, ending ?pgbouncer=true>"
+$env:DIRECT_URL    = "<5432 session pooler URL>"
+npm run seed:categories -- --dry-run   # shows what it would create, writes nothing
+npm run seed:categories                # actually creates them
+```
+
+Expect: `Created 6 default categories: Food, Transport, Shopping, Entertainment, Health, Other`.
+Run it twice if you like — the second run prints "already present, nothing to do".
+
+---
+
 ## 🟢 LATER — not blocking anything
 
 ### [ ] Keep Setu on sandbox
@@ -190,3 +210,9 @@ It was ready ~5s later. Worth knowing before a presentation.
 - The live-login bug is **fixed in code** (`66b59a9`) — but not live until you do step 4 above.
 - `render.yaml`, `.env.example`, `schema.prisma` now document `DATABASE_URL` + `DIRECT_URL`.
 - Redis + RabbitMQ proven healthy locally (`PONG`, `Ping succeeded`).
+- Three Phase 1 leftovers closed with real test output: Google OAuth writes `users.google_id`;
+  categories + goals read-back tests (the old DoD only covered budgets); default categories seeded.
+- **Security bug found and fixed:** `POST /api/categories` trusted a client-supplied
+  `isDefault`, which let any user publish a category into every other user’s list.
+  Now always written as false. This one is worth mentioning in your presentation —
+  it was caught by writing the missing test, not by reading the code.
