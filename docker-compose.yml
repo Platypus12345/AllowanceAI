@@ -2,8 +2,6 @@
 # Starts: PostgreSQL (with pgvector), Redis, RabbitMQ
 # Services (server, ai-service, client) are run separately via npm/uvicorn — not containerised in dev.
 
-version: "3.9"
-
 services:
   postgres:
     image: pgvector/pgvector:pg16
