@@ -11,6 +11,7 @@ import { AppState, Platform, Alert, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { SMSConfirmSheet } from '@/src/components/SMSConfirmSheet';
 import * as budgetClient from '@/src/api/budgetClient';
+import * as ingestClient from '@/src/api/ingestClient';
 import type { ExpenseCategory } from '@/src/api/budgetClient';
 import type { ParsedBankSms, SmsLogEntry } from '@/src/types/sms';
 import {
@@ -62,7 +63,7 @@ Notifications.setNotificationHandler({
 export function SMSProvider({ children }: { children: React.ReactNode }) {
   const [autoSmsEnabled, setAutoState] = useState(true);
   const [smsPermissionGranted, setSmsPermissionGranted] = useState(false);
-  const [pendingPersisted, setPendingPersisted] = useState<Omit<ParsedBankSms, 'raw'>[]>([]);
+  const [pendingPersisted, setPendingPersisted] = useState<ParsedBankSms[]>([]);
   const [smsLog, setSmsLog] = useState<SmsLogEntry[]>([]);
   const [sheetItem, setSheetItem] = useState<ParsedBankSms | null>(null);
   const appState = useRef(AppState.currentState);
@@ -121,7 +122,7 @@ export function SMSProvider({ children }: { children: React.ReactNode }) {
     await saveProcessedIds(next);
   }, []);
 
-  const persistPending = useCallback(async (next: Omit<ParsedBankSms, 'raw'>[]) => {
+  const persistPending = useCallback(async (next: ParsedBankSms[]) => {
     setPendingPersisted(next);
     await savePendingQueue(next);
   }, []);
@@ -311,12 +312,14 @@ export function SMSProvider({ children }: { children: React.ReactNode }) {
       if (!sheetItem) return;
       const id = sheetItem.smsId;
       try {
-        const amount =
-          sheetItem.type === 'refund' ? -Math.abs(sheetItem.amount) : Math.abs(sheetItem.amount);
-        const created = await budgetClient.postExpense({
-          amount,
-          category,
-          description: description || sheetItem.merchant,
+        if (!sheetItem.raw) {
+          Alert.alert('Could not save expense', 'Missing original SMS text to ingest.');
+          return;
+        }
+        const created = await ingestClient.ingestSms({
+          sender: sheetItem.sender,
+          body: sheetItem.raw,
+          receivedAt: sheetItem.date,
         });
         await markProcessed(id);
         const pend = await loadPendingQueue();
@@ -328,7 +331,7 @@ export function SMSProvider({ children }: { children: React.ReactNode }) {
           {
             category,
             description: description || sheetItem.merchant,
-            linkedExpenseId: created._id,
+            linkedExpenseId: created.id,
           },
           {
             id,

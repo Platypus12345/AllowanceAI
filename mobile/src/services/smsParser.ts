@@ -91,7 +91,8 @@ function extractBankName(body: string, sender: string): string | undefined {
 }
 
 /**
- * Returns null if the message is not a parsable bank / UPI transaction SMS.
+ * On-device preview parser. Server ingest re-parses raw SMS
+ * (`server/services/smsParser.js`); that copy is what Phase 2 tests cover.
  */
 export function parseSMS(
   smsBody: string,

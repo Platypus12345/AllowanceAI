@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
   smsLog: 'allowanceai_smsLog',
 } as const;
 
-type PersistedParsed = Omit<ParsedBankSms, 'raw'>;
+type PersistedParsed = ParsedBankSms;
 
 export async function loadProcessedIds(): Promise<string[]> {
   try {
@@ -66,8 +66,7 @@ export async function saveSmsLog(entries: SmsLogEntry[]): Promise<void> {
 }
 
 export function toPersistedParsed(p: ParsedBankSms): PersistedParsed {
-  const { raw: _r, ...rest } = p;
-  return rest;
+  return { ...p };
 }
 
 export function mergeParsedFromPersisted(p: PersistedParsed): ParsedBankSms {

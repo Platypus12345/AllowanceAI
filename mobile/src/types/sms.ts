@@ -7,7 +7,7 @@ export type ParsedBankSms = {
   upiId?: string;
   bankName?: string;
   last4?: string;
-  /** In-memory only; never persist or send to server */
+  /** Original SMS body; posted to server ingest so Postgres can store raw_text */
   raw?: string;
   sender: string;
   smsId: string;
