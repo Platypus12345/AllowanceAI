@@ -7,10 +7,11 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node --test",
-    "test:persistence": "node --test tests/phase1.persistence.test.js tests/phase2.persistence.test.js",
+    "test:persistence": "node --test tests/phase1.persistence.test.js tests/phase1.oauth.persistence.test.js tests/phase1.crud.persistence.test.js tests/phase2.persistence.test.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy"
+    "prisma:migrate": "prisma migrate deploy",
+    "seed:categories": "node scripts/seedDefaultCategories.js"
   },
   "keywords": [],
   "author": "",
