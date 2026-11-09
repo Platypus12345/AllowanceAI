@@ -4,14 +4,31 @@ services:
     name: allowanceai-api
     runtime: node
     rootDir: server
+    # `npm install` runs postinstall -> prisma generate. Verified: generate needs only
+    # DATABASE_URL; `prisma migrate deploy` is the command that requires DIRECT_URL.
+    # Migrations are NOT run here: `prisma migrate deploy` is a manual, reviewed step
+    # (see DEPLOYMENT.md) so a bad deploy can never silently alter the production DB.
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      # PostgreSQL (Supabase free tier). Both are set in the Render dashboard —
+      # sync:false means Render never reads a value from this file, so no secret
+      # ever lands in the repo.
+      #   DATABASE_URL -> transaction pooler, :6543, must end with ?pgbouncer=true
+      #   DIRECT_URL   -> session pooler, :5432 (Prisma CLI / migrations only)
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Legacy v1 MongoDB. OPTIONAL — leave unset and the server skips it and still
+      # boots. Auth/budgets/goals/categories/ingestion are all PostgreSQL now.
       - key: MONGO_URI
         sync: false
+      # Keep this value stable — regenerating it invalidates every issued JWT and
+      # logs every user out.
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_URL
@@ -30,6 +47,10 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      # Setu Account Aggregator stays on sandbox. Rules.md: never flip to production
+      # without an explicit instruction. Pinned here so a dashboard edit is deliberate.
+      - key: SETU_ENV
+        value: sandbox
 
   - type: web
     name: allowanceai-ai

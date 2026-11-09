@@ -1,6 +1,15 @@
+// DATABASE_URL  — the connection the app uses at runtime. On Supabase this is the
+//                 transaction pooler (port 6543) and MUST carry ?pgbouncer=true so
+//                 Prisma stops emitting prepared statements the pooler cannot hold.
+// DIRECT_URL    — a non-pooled / session-mode connection (port 5432) used only by the
+//                 Prisma CLI. `migrate deploy` takes a Postgres advisory lock, which a
+//                 transaction-mode pooler drops between statements, so migrations run
+//                 through the pooler can hang or half-apply.
+//                 For plain Postgres (docker compose, CI) point both at the same URL.
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {

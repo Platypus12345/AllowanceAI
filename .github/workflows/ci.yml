@@ -30,6 +30,9 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://allowance:allowance_dev_secret@127.0.0.1:5432/allowanceai
+      # schema.prisma declares directUrl, so the Prisma CLI requires DIRECT_URL to exist.
+      # Plain Postgres has no pooler, so it is the same connection string.
+      DIRECT_URL: postgresql://allowance:allowance_dev_secret@127.0.0.1:5432/allowanceai
       JWT_SECRET: test_jwt_secret_for_phase_1
 
     steps:
