@@ -4,19 +4,23 @@
 
 ## Backlog
 - [ ] Gmail email-parsing fallback ingestion (Phase 2, optional)
+- [ ] `LoginPage.jsx` posts to `/api/auth/forgot-password`, which no longer exists on the Prisma auth router -> 404. Password reset is dead until the Phase 3 frontend rebuild.
+- [ ] v1 client/mobile screens (expenses, jars, splits, wishlist, friends, ...) still call Mongoose routes, so they fail when `MONGO_URI` is absent. Either port them to Prisma or hide them until Phase 3.
+- [ ] Prisma 6 -> 7 upgrade: v7 moves the direct/migration URL out of `schema.prisma` into `prisma.config.ts`. Deliberately NOT done the night before the mid-term demo.
+- [ ] Remove the `version:` key from docker-compose.yml (Compose warns it is obsolete and ignored).
+- [ ] Live Setu AA sandbox consent click-through in the web client (Phase 2 leftover — server consent + fixture ingest passed; browser OAuth not built)
+- [ ] RabbitMQ async ingest (Phase 2 leftover — ingest is synchronous; DoD only required a durable `transactions` row)
 - [ ] Prove Google OAuth persist a `users.google_id` row (Phase 1 leftover — register/login DoD did not cover OAuth)
 - [ ] Persistence read-back tests for categories and goals CRUD (Phase 1 leftover — only budgets were in the DoD test)
 - [ ] Seed default categories (`is_default`) so a new user has system categories without creating them by hand
-- [ ] Prove Redis + RabbitMQ healthy via `docker compose up` (Phase 0 leftover — only Postgres health was re-verified this cycle)
 - [ ] Minikube demo folder (Phase 8, optional, resume-signal only)
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] Phase 2: Setu AA sandbox adapter — consent_handle persist + recorded sandbox FI JSON → `transactions`
-- [ ] Phase 2: Duplicate detection on ingest (same spend / SMS then AA) with synthetic fixtures only
+_(empty)_
 
 ## In Progress
-- [ ] Phase 2: SMS parser + authenticated ingest into Postgres `transactions` (source=`sms`)
+_(empty)_
 
 ## Review
 _(empty)_
@@ -35,6 +39,56 @@ _(empty)_
 - [x] JWT + Google OAuth auth backed by PostgreSQL users table (Phase 1) — register/login persist a `users` row (Google OAuth still from v1; not exercised by this DoD test)
 - [x] Basic CRUD for categories/budgets/goals (Phase 1) — budget create + GET list verified against Postgres (categories/goals routes exist; DoD path was budgets)
 - [x] Persistence DoD test: register → login → create budget → row present in Postgres via Prisma (no mocks) — `npm run test:persistence` **pass 1 / fail 0** against healthy `allowance_postgres` on `5433:5432`
+- [x] Phase 2: SMS parser + authenticated ingest into Postgres `transactions` (source=`sms`) — synthetic fixtures; parser unit tests + live Postgres write/read-back
+- [x] Phase 2: Setu AA sandbox adapter — `consent_handle` persist + recorded sandbox-shaped FI JSON → `transactions` (source=`setu_aa`); CI/local tests do not need `SETU_*` secrets
+- [x] Phase 2: Duplicate detection — second SMS and SMS-then-AA same spend set `is_duplicate_flag`; `SUM` of non-flagged spend does not increase. Fixtures are synthetic only.
+- [x] Phase 0 leftover: Redis + RabbitMQ proven healthy, not just declared — `docker compose ps` shows all three `(healthy)`; `redis-cli ping` -> `PONG`; `rabbitmq-diagnostics ping` -> `Ping succeeded` and `check_running` -> `fully booted and running`. Postgres reports `pgvector 0.8.7` in schema `public`.
+- [x] **Production login unblocked** — `/api/health` now reports PostgreSQL via a real `SELECT 1`, not `mongoose.readyState`. The client `wakeApiServer` gates Google login on `dbReady`, so a dead/absent Mongo was blocking a login path that never touches Mongo. Live before: `{"dbReady":false}`. Local after, with `MONGO_URI` unset: `{"status":"ok","dbReady":true,"db":"postgres","legacyMongoReady":false}`.
+- [x] `render.yaml` / `.env.example` / `schema.prisma` document `DATABASE_URL` + `DIRECT_URL` for the Supabase pooler. Verified on Prisma 6.19.3: `migrate deploy` without `DIRECT_URL` fails `P1012`, `generate` does not — so CI got `DIRECT_URL` and the Render build is unaffected. No secrets in the repo.
+
+### Phase 2 DoD evidence (2026-11-09)
+
+Run against the live compose Postgres (`allowance_postgres`, host **5433**, `(healthy)`),
+`pgvector/pgvector:pg16`, no mocks and no stubbed Prisma:
+
+```
+> server@1.0.0 test
+> node --test
+
+▶ Phase 1 — persistence against live Postgres
+  ✔ register, login, create budget, and read the row back from Postgres
+▶ Phase 2 — ingestion persistence against live Postgres
+  ✔ SMS and Setu AA ingest persist, read back, and flag duplicates
+▶ Phase 2 — SMS parser (no Expo, synthetic fixtures)
+  ✔ parses a debit bank SMS and a UPI SMS
+  ✔ parses credit vs debit
+ℹ tests 14
+ℹ pass 14
+ℹ fail 0
+```
+
+Mapped to the DoD in ImplementationPlan.md:
+
+| DoD | Status | Proof |
+|---|---|---|
+| 1. Two SMS fixtures -> amount/merchant/occurred_at/direction, Expo-free parser | met | `phase2.smsParser.test.js` asserts all four on the debit and UPI fixtures, plus a credit fixture; parser is plain CommonJS |
+| 2. Authenticated POST -> `transactions` (`source='sms'`, `raw_text`) + `linked_accounts` (`source='sms'`) | met | asserted on the API response, via Prisma, and via raw SQL joining `linked_accounts` |
+| 3. Read back twice (API + separate Prisma/SELECT) | met | `GET /api/transactions` **and** a second `PrismaClient` doing a literal `$queryRaw SELECT` |
+| 4. Setu sandbox-shaped FI JSON -> `source='setu_aa'` + `consent_handle`, read back twice | met | ReBIT deposit fixture with `decryptedFI`; `consent_handle` now verified via Prisma **and** raw SQL, not only the API echo |
+| 5. Duplicate does not increase non-flagged `SUM`; cross-source SMS->AA flags | met | raw SQL `SUM` = 469 with two rows at `is_duplicate_flag = true`; AA debit carries `duplicateOf` = the SMS row id |
+| 6. Both sources in the same `transactions` table | met | raw `GROUP BY source` -> `setu_aa: 2`, `sms: 1` for one user |
+| 7. Fixtures synthetic | met | invented merchants, amounts, UPI handles, masked account numbers; reviewed by hand |
+
+Strengthened during this review: the Phase 2 test originally read back only through
+a second `PrismaClient` model API. It now also does literal `$queryRaw` SELECTs for
+the SMS row, the AA row, the `consent_handle`, the per-source counts and the spend SUM —
+matching the convention `phase1.persistence.test.js` already used.
+
+Still open and deliberately **not** claimed as done: live browser Setu consent
+click-through, and RabbitMQ async ingest (ingest is synchronous). Both are in Backlog,
+and ImplementationPlan.md explicitly allows them to stay partial after Phase 2.
+
+---
 
 ### Correction (2026-10-06)
 Phase 1 cards were marked Done because CI went green after adding Prisma + validation tests. That conflated lint/validation with persistence. They were moved back to In Progress until a real Postgres write/read test passed. Re-verified the same day: Docker Desktop + WSL2, compose Postgres remapped off native PG17's 5432 onto **5433**, container **healthy**, `npm run test:persistence` passed.
