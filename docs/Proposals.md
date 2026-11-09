@@ -22,7 +22,7 @@ option is not worth it at this scale, I say so — see P9, P10 and P11.
 | P3 | Deterministic retrieval eval in CI; demote Ragas to nightly | **adopt now** (Phase 5 DoD) | M | ImplementationPlan, TechSpec |
 | P4 | Transaction "chunking": one row → one deterministic sentence | **adopt now** (Phase 4 design) | S | TechSpec, Schema |
 | P5 | Keep LangGraph, but keep the graph linear — no agentic RAG | **adopt now** (confirms TechSpec) | — | TechSpec note |
-| P6 | LLM provider: Gemini free tier primary, OpenRouter fallback | **adopt later** (Phase 4) | S | TechSpec, .env.example |
+| P6 | Model strategy built for longevity, not one vendor free tier | **adopt later** (Phase 4); principle now | S | TechSpec, .env.example |
 | P7 | Guardrails: Pydantic + a numeric cross-check before Guardrails AI | **adopt later** (Phase 5) | M | TechSpec |
 | P8 | MCP server exposing AllowanceAI as read-only tools | **adopt later** (post-Phase 5) | L | TechSpec, new phase |
 | P9 | Drop RabbitMQ from the critical path | **adopt later / partial** | S | TechSpec, Rules |
@@ -219,12 +219,35 @@ token-streaming story, per-node unit tests (which Rules.md already requires) and
 tracing, not "orchestration" in the abstract. It is also a tool mandate in Rules.md, and
 switching frameworks the week of a demo would be a bad trade.
 
-What I would *not* do is make it agentic. An agent that chooses its own retrieval steps adds
-non-determinism, more LLM calls (your free-tier quota), and a worse failure mode: a wrong
-number stated confidently. For money questions, a fixed path where exact figures come from
-SQL is the better engineering decision, and it is more defensible in a viva than "the agent
-decides". Lighter SDKs (PydanticAI etc.) are a reasonable fit for this scale but are not
-worth a migration.
+**Why reject the *agentic* variant specifically.** Four concrete reasons, in order of how
+much they matter here:
+
+1. **Exact figures must come from SQL, not from a model's choice of steps.** TechSpec §3
+   already splits this correctly: the rules node runs the actual aggregate query, and
+   retrieval only identifies *which* transactions the user means. An agent free to choose
+   its own path can skip the SQL step and answer "about ₹8,000" from retrieved text. For a
+   budgeting app, "about" is a defect, and a confidently wrong number is indistinguishable
+   from a right one to the user.
+2. **Non-determinism breaks the CI gate in P3.** If the graph takes a different route per
+   run, the eval score measures the route rather than retrieval quality, and the build fails
+   or passes for reasons unrelated to the change under test. You cannot gate on a number
+   that moves by itself.
+3. **It multiplies LLM calls.** Reason → tool → reflect → tool is 3-6 calls per question
+   instead of one. Against any free tier that is the difference between a demo that works
+   and a demo that hits a quota wall mid-presentation.
+4. **It is weaker to defend.** "Retrieval is fixed and the arithmetic is SQL, so the number
+   is always correct" is a strong viva answer. "The agent decides how to answer" invites
+   exactly the question you do not want asked.
+
+**What is *not* being rejected:** tool-calling as a mechanism, or adding a bounded loop
+later for genuinely open-ended requests (for example "help me plan next month", or one retry
+when retrieval returns nothing). The proposal is to keep the core
+"how much did I spend on X" path fixed, because that path has a correct answer that the
+database already knows. Start fixed and provably correct; add a loop only where an eval
+shows it helps.
+
+Lighter SDKs (PydanticAI and similar) are a reasonable fit at this scale but are not worth a
+migration given LangGraph is already a Rules.md mandate.
 
 **Cost / Effort / Risk.** None — this ratifies the current plan.
 
@@ -236,37 +259,74 @@ worth more to a reviewer than silently not doing it.
 
 ---
 
-## P6 — LLM provider: Gemini free tier primary, OpenRouter free as fallback
+## P6 — Model strategy built for longevity, not for one vendor's free tier
 
-**What.** Keep the existing OpenAI-compatible config (`OPENAI_BASE_URL` / `OPENAI_MODEL`)
-so the provider stays swappable, and default chat to Google's free Gemini tier with
-OpenRouter `:free` models as the fallback.
+**Revised 2026-11-09** after Aditya asked for a choice that "goes a long way" rather than a
+free tier that lapses in a month. That was the right challenge; the first version of this
+proposal answered the wrong question.
 
-**Why.** Comparisons put Gemini's free tier as the most capable free option by a clear
-margin, with OpenRouter offering the widest catalogue and Groq the lowest latency. Reported
-free-tier limits cluster around: OpenRouter ~20 req/min and ~50 req/day unfunded; Groq
-~30 req/min; Gemini Flash-class models up to ~1,500 req/day. **Verify before relying on
-these** — the sources are vendor-adjacent, several quoted model names I could not confirm,
-and free limits change often. Check Google AI Studio for your account's actual per-model
-limits.
+**The finding that reframes it.** I went to the official pages instead of the roundups.
+Google's rate-limit page **does not publish free-tier RPM/RPD/TPM numbers at all** — it says
+limits "depend on a variety of factors (such as your usage tier) and can be viewed in Google
+AI Studio", and adds "Specified rate limits are not guaranteed and actual capacity may
+vary", while the pricing page says "Rate limits are subject to change". Groq's rate-limit
+table does not state which plan each row belongs to.
 
-**One thing to check that is not a rate limit:** free-tier Gemini input may be used to
-improve Google's products. This app handles personal financial data. Even with synthetic
-demo data that is fine, but it belongs in the docs as a conscious decision, and it is an
-argument for keeping the transaction-categorisation model local (see below).
+So the premise "pick the most generous free tier" is unsound: **no provider's free tier is a
+contract.** The durable thing is an architecture where the provider is not load-bearing.
 
-**Cost.** $0, with a quota ceiling rather than a bill.
+**What.** Three layers, with the expiry risk pushed off the critical path:
 
-**Effort.** S — config and a fallback path.
+| Layer | Choice | Why it cannot lapse |
+|---|---|---|
+| **Embeddings** — runs on *every ingested transaction* | `bge-small-en-v1.5`, local (sentence-transformers / fastembed) | No key, no quota, no vendor, no expiry. Already matches `vector(384)` per P2 |
+| **Categorisation** | the existing TF-IDF + Logistic Regression model | Pure local scikit-learn, zero API calls |
+| **Chat** — only on a user question | OpenAI-compatible config, already in the repo: Gemini Flash-Lite class by default, local Ollama model as fallback | Swappable with one env var |
 
-**Risk.** Medium, and the reason this is "later" not "now": free quotas can change or
-vanish, and a live demo that depends on one is fragile. Mitigation: provider-agnostic
-config, plus cache answers in Redis so a demo is not one quota error from failing.
+Plus: cache chat answers in Redis (already in the stack) so a repeated demo question costs
+nothing and a quota error cannot break a live presentation.
 
-**Changes.** TechSpec.md §8 and `.env.example` naming the provider and fallback.
+**Why this is genuinely durable — the architectural point.** Because exact figures come from
+the rules node's SQL (TechSpec §3) and never from the model, **the LLM only phrases text. It
+never does arithmetic.** That has a direct consequence: a *small* model is sufficient, so you
+can fall back to a local 3B-class model and lose prose polish, not correctness. A design that
+needs a frontier model to be *correct* is the fragile one; this one degrades gracefully.
+Embeddings are the only call that scales with data volume, and that layer has no vendor at
+all.
 
-**Recommendation: adopt later** (Phase 4, when the chat endpoint is built). Decide nothing
-now beyond keeping the config swappable — which it already is.
+**Privacy, which is not a rate-limit issue.** Gemini's free tier card states
+"Content used to improve our products" (the paid card says content is **not** so used, and
+per-model rows read "Yes" for free-tier models). A chat prompt here carries real transaction
+context. For a student portfolio on synthetic data that is an acceptable, *documented*
+trade; it is also the strongest argument for keeping embeddings and categorisation local, and
+for treating the local Ollama path as first-class rather than a curiosity.
+
+**Cost.** $0. Quota ceilings rather than a bill, and the local layers have neither.
+
+**Effort.** S — the swappable config already exists (`OPENAI_BASE_URL` / `OPENAI_MODEL`);
+this is a default plus a fallback plus a cache.
+
+**Risk.** Low, now that nothing critical depends on one tier. The residual risks are real but
+bounded: local embedding inference needs RAM on Render's free tier (measure RSS, or move it
+to a worker), and Ollama is a dev/self-host story, not something that runs on Render free.
+
+**Changes.** TechSpec.md §8 (name the embedding model and dimension, the default chat model,
+and the fallback); `.env.example` for the provider variables. No schema change.
+
+**Recommendation: adopt later** (Phase 4, when the chat endpoint is built) — **but adopt the
+*principle* now**: never let a free tier sit on the critical path, and keep every per-record
+computation local. Nothing needs changing today, because the config is already swappable.
+
+**Do not** use: anything billed as trial credits that expire (Cerebras' $5/30-day trial,
+Cohere trial keys capped at 1,000 calls/month and not licensed for production). Those are the
+options that actually fail in a month, and they are the ones to avoid for exactly the reason
+Aditya raised.
+
+**Related — keep the categoriser local.** The TF-IDF + Logistic Regression model is the right
+call and should not be replaced by an LLM: deterministic, free per call, offline, no quota.
+96.4% on 420 synthetic samples is adequate here. Use an LLM only as a fallback for
+low-confidence predictions. Be ready to say in the viva that the accuracy is measured on
+synthetic data, so it validates the pipeline rather than real-world performance.
 
 **Related:** the TF-IDF + Logistic Regression categoriser you mentioned for `ai-service/ml/`
 is the right call and I would not replace it with an LLM. It is deterministic, costs nothing
@@ -455,7 +515,12 @@ sources disagreed or could not confirm a claim, the proposal says so.
 - "We Tested 8 LangGraph Alternatives for Scalable Agent Orchestration" (ZenML) — https://www.zenml.io/blog/langgraph-alternatives
 - "LangGraph Alternatives 2026: 12 Options for Production" (Sim AI) — https://www.sim.ai/library/langgraph-alternatives
 
-**Free LLM tiers** (figures vary between sources and change often — verify before relying):
+**LLM free tiers — official pages (read 2026-11-09; these supersede the roundups below):**
+- Gemini API rate limits — https://ai.google.dev/gemini-api/docs/rate-limits (redirects to https://aistudio.google.com/docs/rate-limits). Publishes **no** free-tier RPM/RPD/TPM; states limits "can be viewed in Google AI Studio" and "Specified rate limits are not guaranteed and actual capacity may vary".
+- Gemini API pricing — https://ai.google.dev/gemini-api/docs/pricing (redirects to https://aistudio.google.com/docs/pricing). Flash-class models listed "Free of charge"; free card says "Content used to improve our products"; "Rate limits are subject to change".
+- Groq rate limits — https://console.groq.com/docs/rate-limits. Has a numeric table, but it does not state which plan tier each row belongs to, so the numbers cannot be attributed to the free plan with confidence.
+
+**Free LLM tiers — third-party roundups** (figures vary between sources and change often; several quoted model names could not be confirmed — treat as indicative only):
 - "Free LLM APIs in 2026: every free tier, its limits and its data terms" — https://www.developersdigest.tech/models/free-api
 - "9 free LLM APIs compared: rate limits, card rules and the catch (2026)" — https://dev.to/aifree/9-free-llm-apis-compared-rate-limits-card-rules-and-the-catch-2026-3hhj
 - "Free LLM API in 2026: 13 Options Ranked and Compared" (OpenRouter) — https://openrouter.ai/blog/tutorials/free-llm-apis-compared/
