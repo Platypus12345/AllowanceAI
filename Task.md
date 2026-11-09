@@ -137,6 +137,35 @@ login → budgets → goals → transactions.** That path is on PostgreSQL and t
 
 ---
 
+## ⚠️ CI shows a red ✗ right now — it is a GitHub outage, not our code
+
+Commit `95a6f4a` shows a failed CI run. **Nothing is wrong with the repo.** During that
+push, GitHub Actions was in a declared **major outage**
+("Incident with Actions", 2026-11-09 18:12 UTC). Jobs were never scheduled:
+attempt 1 created only 1 of 3 jobs, attempt 2 created **zero**, and
+`gh run view --log-failed` returns nothing at all — because no job ever ran, let alone
+failed.
+
+Evidence it is not us:
+
+- `.github/workflows/ci.yml` is **byte-identical** between the last green run (`86b2852`)
+  and the red one (`95a6f4a`) — same git blob `7ca69f4`. The diff touches no CI file.
+- The same suite was run locally against a **fresh, empty** database under CI conditions
+  (all 5 test files racing to migrate a blank DB): **28 tests, 28 pass, 0 fail.**
+
+### [ ] Re-run CI once https://www.githubstatus.com shows Actions operational
+
+```powershell
+cd C:UsersAdityaDesktopAllowanceAIallowance-ai
+gh run rerun --failed            # or just: gh run list --limit 3
+gh run watch                     # pick the run, wait for it
+```
+
+Expect all three jobs green, with `# pass 28` / `# fail 0` in the Server job log.
+Do not change any code to "fix" this — there is nothing to fix.
+
+---
+
 ## 🟡 DECISIONS CLAUDE IS WAITING ON
 
 From [docs/Proposals.md](docs/Proposals.md). Nothing is implemented. Reply with the numbers
