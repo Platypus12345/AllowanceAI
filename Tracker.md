@@ -14,10 +14,27 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-_(empty)_
+- [ ] Phase 3: Redis-cached dashboard aggregation (`GET /api/dashboard/summary`)
+- [ ] Phase 3: websocket push so a new transaction updates the dashboard with no refresh (Phase 3 DoD)
+- [ ] Phase 3: retire or hide the v1 Mongoose-backed screens once the v2 dashboard lands (supersedes the two v1-breakage Backlog cards)
 
 ## In Progress
-_(empty)_
+- [ ] **Phase 3: v2 dashboard on the Prisma API.** Discovered 2026-11-10: the client calls
+  **zero** v2 endpoints — no `/budgets`, `/goals`, `/transactions`, `/categories`. Every one of
+  its ~50 calls is a v1 Mongoose route, and `DashboardPage` fetches `/budget/stats`, which does
+  `User.findById` through Mongoose. With `MONGO_URI` deleted (Task.md step 3) the landing page
+  after login returns 500. So the documented demo path "login → budgets → goals → transactions"
+  is real in the API and tested, but has **no UI at all**. This card builds it.
+  - [x] **`POST /api/transactions` — manual entry (`source='manual'`).** Transactions could only
+        arrive via `/api/ingest/sms` or `/api/ingest/setu`, so there was no way to add one from a
+        browser and the Phase 3 DoD had nothing to trigger. Reuses `ensureLinkedAccount` +
+        `findDuplicate` rather than a bare create, so a hand-keyed spend that repeats an already
+        ingested SMS is flagged instead of double-counted. Proven against live Postgres
+        (`phase3.manualtx.persistence.test.js`, 5 tests): debit stored positive / credit negative
+        matching the parsers, SMS-then-manual duplicate flagged with the non-flagged spend SUM
+        unchanged at 469, another user's `categoryId` rejected 400 writing no row, and five
+        invalid payloads rejected writing no row. **Negative control:** flipping the sign
+        convention fails 3 of the 5 tests. Suite now **33 pass / 0 fail**, up from 28.
 
 ## Review
 _(empty)_

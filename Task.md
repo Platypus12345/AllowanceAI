@@ -4,7 +4,7 @@ This is your checklist. Claude keeps it updated; it holds **only** the steps tha
 your hands (dashboards, secrets, browser clicks). Everything Claude can do itself goes in
 [Tracker.md](Tracker.md) instead.
 
-Last updated: 2026-11-09, after pushing `baa91c9`. Full server suite: **28 tests, 28 pass, 0 fail.**
+Last updated: 2026-11-10 — step 1 verified done, CI re-run after the GitHub outage cleared. Full server suite: **28 tests, 28 pass, 0 fail.**
 
 **Never paste a password, connection string or API key into chat.** Set them in the
 provider dashboards yourself. Nothing secret belongs in this repo.
@@ -15,7 +15,11 @@ provider dashboards yourself. Nothing secret belongs in this repo.
 
 Do these in order. Order matters: step 2 fails if step 1 is skipped.
 
-### [ ] 1. Enable pgvector in Supabase, in the `public` schema
+### [x] 1. Enable pgvector in Supabase, in the `public` schema — DONE
+
+**Verified 2026-11-10.** The check query returned `extname = vector`, `schema = public`.
+Already correct, so nothing was run — no `CREATE EXTENSION`, no `ALTER EXTENSION`.
+Step 2 is unblocked. Kept below for the record / if you ever rebuild the database.
 
 Supabase Dashboard → **SQL Editor** → run:
 

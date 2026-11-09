@@ -121,6 +121,43 @@ async function ingestSetu({ userId, consentHandle, fiData }) {
   return { linkedAccount: linked, results };
 }
 
+// Manual entry. Until Phase 3 a transaction could only arrive from `/api/ingest/sms` or
+// `/api/ingest/setu`, so there was no way to record a cash spend from a browser — and the
+// Phase 3 DoD ("adding a transaction updates the dashboard live") had nothing to trigger it.
+//
+// Deliberately reuses ensureLinkedAccount + findDuplicate rather than writing a bare
+// prisma.transaction.create: a manually keyed row that repeats an SMS already ingested is
+// exactly the double-count duplicate detection exists to catch, and the sign convention
+// (debit positive, credit negative) has to match the parsers or SUMs silently diverge.
+async function createManual({ userId, amount, merchant, categoryId, occurredAt, direction, rawText }) {
+  const dir = direction === 'credit' ? 'credit' : 'debit';
+  const magnitude = Math.abs(Number(amount));
+  const signedAmount = dir === 'debit' ? magnitude : -magnitude;
+  const when = occurredAt ? new Date(occurredAt) : new Date();
+
+  const linkedAccount = await ensureLinkedAccount(userId, 'manual', null);
+  const duplicateOf = await findDuplicate(userId, signedAmount, merchant, when);
+
+  const row = await prisma.transaction.create({
+    data: {
+      userId,
+      linkedAccountId: linkedAccount.id,
+      amount: signedAmount,
+      merchant: merchant || null,
+      categoryId: categoryId || null,
+      source: 'manual',
+      rawText: rawText || null,
+      occurredAt: when,
+      isDuplicateFlag: Boolean(duplicateOf),
+    },
+  });
+
+  return {
+    transaction: serializeTransaction(row),
+    duplicateOf: duplicateOf ? duplicateOf.id : null,
+  };
+}
+
 function serializeTransaction(row) {
   if (!row) return row;
   return {
@@ -149,6 +186,7 @@ module.exports = {
   DUPLICATE_WINDOW_MS,
   ingestSms,
   ingestSetu,
+  createManual,
   saveSetuConsent,
   listTransactions,
   spendSumNonDuplicate,
