@@ -24,10 +24,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create custom category
+// Create custom category.
+// `isDefault` is deliberately NOT read from the request body: GET above returns every
+// row with isDefault = true regardless of owner, so honouring a client-supplied flag let
+// any user publish a category into every other user's list. System defaults are created
+// only by the seed (scripts/seedDefaultCategories.js), never over HTTP.
 router.post('/', async (req, res) => {
   try {
-    const { name, isDefault } = req.body;
+    const { name } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Category name is required' });
     }
@@ -36,7 +40,7 @@ router.post('/', async (req, res) => {
       data: {
         userId: req.userId,
         name: name.trim(),
-        isDefault: Boolean(isDefault),
+        isDefault: false,
       },
     });
     res.status(201).json(category);
