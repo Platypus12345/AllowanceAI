@@ -1,0 +1,79 @@
+{
+  "_comment": "Synthetic Setu AA sandbox-shaped FI JSON (ReBIT deposit). Names, PAN, mobile, IFSC, and amounts are invented — not live Setu or bank data.",
+  "id": "syn-session-0001",
+  "consentId": "syn-consent-handle-0001",
+  "fipID": "Setu-FIP",
+  "DataRange": {
+    "from": "2024-01-01T00:00:00+05:30",
+    "to": "2024-01-31T23:59:59+05:30"
+  },
+  "FI": [
+    {
+      "fipID": "Setu-FIP",
+      "data": [
+        {
+          "linkRefNumber": "syn-link-ref-0001",
+          "maskedAccNumber": "XXXXXX4242",
+          "decryptedFI": {
+            "account": {
+              "linkedAccRef": "syn-link-ref-0001",
+              "maskedAccNumber": "XXXXXX4242",
+              "type": "deposit",
+              "version": "1.2",
+              "profile": {
+                "holders": {
+                  "type": "SINGLE",
+                  "holder": [
+                    {
+                      "name": "Demo Sandbox User",
+                      "dob": "1994-02-02",
+                      "mobile": "9000000001",
+                      "email": "sandbox.user@example.test",
+                      "pan": "AAAAA0000A",
+                      "nominee": "NOT-REGISTERED",
+                      "ckycCompliance": true
+                    }
+                  ]
+                }
+              },
+              "summary": {
+                "currentBalance": "12500.00",
+                "currency": "INR",
+                "type": "SAVINGS",
+                "status": "ACTIVE",
+                "branch": "Example Nagar",
+                "ifscCode": "SBIN0000001",
+                "openingDate": "2020-01-01",
+                "balanceDateTime": "2024-01-15T18:00:00+05:30"
+              },
+              "transactions": {
+                "startDate": "2024-01-01",
+                "endDate": "2024-01-31",
+                "transaction": [
+                  {
+                    "type": "DEBIT",
+                    "mode": "UPI",
+                    "amount": "349.00",
+                    "currentBalance": "12500.00",
+                    "transactionTimestamp": "2024-01-15T14:22:00+05:30",
+                    "valueDate": "2024-01-15",
+                    "narration": "UPI/DR/SYNTHETIC MART/mart.demo@okaxis"
+                  },
+                  {
+                    "type": "CREDIT",
+                    "mode": "OTHERS",
+                    "amount": "2000.00",
+                    "currentBalance": "12849.00",
+                    "transactionTimestamp": "2024-01-16T09:00:00+05:30",
+                    "valueDate": "2024-01-16",
+                    "narration": "ACME PAYROLL JAN"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

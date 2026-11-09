@@ -1,0 +1,18 @@
+{
+  "_comment": "All values are invented. Do not put real account numbers, phones, or live txns here.",
+  "debit": {
+    "sender": "VM-HDFCBK",
+    "receivedAt": "2024-01-15T14:22:00+05:30",
+    "body": "HDFC Bank: INR 349.00 debited from a/c XX4242 on 15-01-24 to SYNTHETIC MART UPI Ref SYNTH9F3K2. Avl bal INR 12500.00"
+  },
+  "upi": {
+    "sender": "VM-PHONEPE",
+    "receivedAt": "2024-01-18T19:05:00+05:30",
+    "body": "Paid Rs.120.00 to cafe.demo@okaxis via PhonePe. Ref SYNTHUPI001."
+  },
+  "credit": {
+    "sender": "VM-SBIINB",
+    "receivedAt": "2024-01-16T09:00:00+05:30",
+    "body": "SBI: INR 2000.00 credited to a/c XX4242 on 16-01-24 from ACME PAYROLL. Avl bal INR 14500.00"
+  }
+}
