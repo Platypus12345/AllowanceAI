@@ -7,6 +7,7 @@ const { corsOptions } = require('./middleware/cors');
 
 require('./config/passport');
 const { connectDatabase } = require('./config/database');
+const prisma = require('./config/prisma');
 const { getClientBaseUrl, getGoogleCallbackUrl } = require('./config/appUrls');
 
 const authRoutes = require('./routes/auth');
@@ -39,12 +40,26 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(passport.initialize());
 
-// Health check — available as soon as HTTP listens (before Mongo finishes connecting)
-app.get('/api/health', (req, res) => {
-  const dbReady = mongoose.connection.readyState === 1;
+// Health check — available as soon as HTTP listens, before any DB finishes connecting.
+// `dbReady` reflects **PostgreSQL** (the v2 source of truth for auth and transactions),
+// because the web client gates login on this flag. Mongo is legacy-only and is reported
+// separately so an absent or dead Mongo can never block login again.
+app.get('/api/health', async (req, res) => {
+  let dbReady = false;
+  let dbError;
+  try {
+    await prisma.$queryRawUnsafe('SELECT 1');
+    dbReady = true;
+  } catch (err) {
+    dbError = err.message;
+  }
+
   res.json({
     status: 'ok',
     dbReady,
+    db: 'postgres',
+    ...(dbError && process.env.NODE_ENV !== 'production' ? { dbError } : {}),
+    legacyMongoReady: mongoose.connection.readyState === 1,
     timestamp: new Date(),
   });
 });
@@ -194,23 +209,40 @@ cron.schedule('0 */6 * * *', async () => {
 
 const PORT = process.env.PORT || 5000;
 
-// Listen immediately so Render cold-start stops showing the loading page.
-// MongoDB connects in the background; auth/data routes need dbReady.
+// Listen immediately so a Render cold start stops showing the loading page.
+// PostgreSQL (Prisma) is the v2 source of truth and connects lazily per query.
+// Mongo is legacy v1 only: it is OPTIONAL and must never block boot or login.
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`CLIENT_URL redirect base: ${getClientBaseUrl()}`);
   console.log(`Google callback: ${getGoogleCallbackUrl()}`);
 
+  if (!process.env.DATABASE_URL) {
+    console.error(
+      'FATAL CONFIG: DATABASE_URL is not set. Auth, budgets and ingestion will all fail. ' +
+        'Set it to the PostgreSQL connection string (see server/.env.example).'
+    );
+  }
+
+  // Warm the Postgres pool so the first login is not paying connect latency.
+  prisma
+    .$queryRawUnsafe('SELECT 1')
+    .then(() => console.log('PostgreSQL ready (Prisma)'))
+    .catch((err) => console.error('PostgreSQL not reachable:', err.message));
+
+  // Legacy v1 Mongo routes only. Skipped entirely when MONGO_URI is absent.
+  if (!process.env.MONGO_URI) {
+    console.warn('MONGO_URI not set — skipping legacy MongoDB connection (v1 routes disabled).');
+    return;
+  }
+
   connectDatabase()
-    .then(() => {
-      console.log('Database ready');
-    })
+    .then(() => console.log('Legacy MongoDB connected'))
     .catch((err) => {
-      console.error('MongoDB connection error:', err.message);
-      // Keep serving /api/health so the instance stays up; retry shortly
+      console.error('Legacy MongoDB connection error (non-fatal):', err.message);
       setTimeout(() => {
         connectDatabase().catch((retryErr) => {
-          console.error('MongoDB retry failed:', retryErr.message);
+          console.error('Legacy MongoDB retry failed (non-fatal):', retryErr.message);
         });
       }, 5000);
     });
