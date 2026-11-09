@@ -2,6 +2,7 @@ const express = require('express');
 const verifyJWT = require('../middleware/verifyJWT');
 const prisma = require('../config/prisma');
 const ingest = require('../services/ingestService');
+const { invalidateSummary } = require('../services/dashboardService');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -61,6 +62,7 @@ router.post('/', async (req, res) => {
       rawText,
     });
 
+    await invalidateSummary(req.userId);
     res.status(201).json(result);
   } catch (error) {
     console.error('Create manual transaction failed:', error);

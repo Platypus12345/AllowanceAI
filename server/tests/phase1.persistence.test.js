@@ -5,6 +5,10 @@ const path = require('path');
 const express = require('express');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { PrismaClient } = require('@prisma/client');
+// Budget/goal/ingest writes now invalidate the dashboard cache, which opens a Redis
+// connection when REDIS_URL is set. An open client keeps the node:test process alive
+// forever, so it is closed here exactly like the Prisma client below.
+const { cacheQuit } = require('../config/redis');
 
 // Default matches docker-compose.yml postgres (host 5433 → container 5432).
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_phase_1';
@@ -76,6 +80,7 @@ describe('Phase 1 — persistence against live Postgres', () => {
       }
       if (verifyClient) {
         await verifyClient.$disconnect();
+        await cacheQuit();
       }
     }
   });

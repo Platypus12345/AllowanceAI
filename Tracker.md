@@ -14,7 +14,6 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] Phase 3: Redis-cached dashboard aggregation (`GET /api/dashboard/summary`)
 - [ ] Phase 3: websocket push so a new transaction updates the dashboard with no refresh (Phase 3 DoD)
 - [ ] Phase 3: retire or hide the v1 Mongoose-backed screens once the v2 dashboard lands (supersedes the two v1-breakage Backlog cards)
 
@@ -35,6 +34,21 @@
         unchanged at 469, another user's `categoryId` rejected 400 writing no row, and five
         invalid payloads rejected writing no row. **Negative control:** flipping the sign
         convention fails 3 of the 5 tests. Suite now **33 pass / 0 fail**, up from 28.
+  - [x] **`GET /api/dashboard/summary` — Redis-cached aggregation.** One read paints the whole
+        landing page: month spend, per-budget progress, goal progress, 10 most recent
+        transactions. Aggregation honours the Phase 2 conventions — credits (negative) and
+        `is_duplicate_flag` rows are excluded, so the dashboard cannot undo duplicate detection.
+        Invalidated on every transaction / budget / goal write, with a 60s TTL as backstop.
+        **The cache is fail-open on purpose:** `render.yaml` provisions no Redis, so
+        `config/redis.js` degrades to a direct PostgreSQL read when `REDIS_URL` is unset or
+        Redis is down. A required cache here would repeat the live-login bug exactly.
+        Proven (`phase3.dashboard.persistence.test.js`, 5 tests) **both with Redis and without**:
+        same numbers, no 500. Cache-hit is asserted only when `REDIS_URL` is set, else a dead
+        cache would pass silently. **Negative controls:** disabling invalidation fails the
+        staleness test; keys confirmed present in Redis via `redis-cli KEYS`.
+  - [x] Fixed a real defect found while doing this: an open Redis client kept `node --test`
+        alive forever, hanging the suite. Every persistence test now closes it in `after`,
+        exactly as it already closed Prisma. Suite **38 pass / 0 fail** with Redis AND without.
 
 ## Review
 _(empty)_

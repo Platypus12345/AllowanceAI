@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../config/prisma');
 const verifyJWT = require('../middleware/verifyJWT');
+const { invalidateSummary } = require('../services/dashboardService');
 
 router.use(verifyJWT);
 
@@ -39,6 +40,7 @@ router.post('/', async (req, res) => {
         targetDate: targetDate ? new Date(targetDate) : null,
       },
     });
+    await invalidateSummary(req.userId);
     res.status(201).json(goal);
   } catch (error) {
     console.error('Failed to create goal:', error);
@@ -69,6 +71,7 @@ router.put('/:id', async (req, res) => {
       where: { id },
       data,
     });
+    await invalidateSummary(req.userId);
     res.json(updated);
   } catch (error) {
     console.error('Failed to update goal:', error);
@@ -88,6 +91,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     await prisma.goal.delete({ where: { id } });
+    await invalidateSummary(req.userId);
     res.json({ message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Failed to delete goal:', error);

@@ -16,6 +16,10 @@ const path = require('node:path');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { PrismaClient } = require('@prisma/client');
+// Budget/goal/ingest writes now invalidate the dashboard cache, which opens a Redis
+// connection when REDIS_URL is set. An open client keeps the node:test process alive
+// forever, so it is closed here exactly like the Prisma client below.
+const { cacheQuit } = require('../config/redis');
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_phase_1';
 process.env.DATABASE_URL =
@@ -88,6 +92,7 @@ describe('Phase 1 — Google OAuth persistence against live Postgres', () => {
       await verifyClient.user.delete({ where: { id } }).catch(() => {});
     }
     await verifyClient.$disconnect();
+    await cacheQuit();
   });
 
   test('a first-time Google sign-in writes a users row carrying google_id', async () => {

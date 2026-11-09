@@ -1,6 +1,7 @@
 const express = require('express');
 const verifyJWT = require('../middleware/verifyJWT');
 const ingest = require('../services/ingestService');
+const { invalidateSummary } = require('../services/dashboardService');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -17,6 +18,7 @@ router.post('/sms', async (req, res) => {
       body,
       receivedAt,
     });
+    await invalidateSummary(req.userId);
     res.status(201).json({
       ...ingest.serializeTransaction(result.transaction),
       duplicateOf: result.duplicateOf,
@@ -53,6 +55,7 @@ router.post('/setu', async (req, res) => {
       consentHandle,
       fiData,
     });
+    await invalidateSummary(req.userId);
     res.status(201).json({
       linkedAccount,
       transactions: results.map((r) => ({

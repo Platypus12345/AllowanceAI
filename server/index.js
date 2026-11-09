@@ -89,6 +89,7 @@ app.use('/api/budgets', budgetsRoutes);
 app.use('/api/goals', goalsRoutes);
 app.use('/api/ingest', require('./routes/ingest'));
 app.use('/api/transactions', require('./routes/transactions'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 const cron = require('node-cron');
 const RecurringExpense = require('./models/RecurringExpense');

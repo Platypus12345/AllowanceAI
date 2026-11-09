@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../config/prisma');
 const verifyJWT = require('../middleware/verifyJWT');
+const { invalidateSummary } = require('../services/dashboardService');
 
 router.use(verifyJWT);
 
@@ -49,6 +50,7 @@ router.post('/', async (req, res) => {
       },
       include: { category: true },
     });
+    await invalidateSummary(req.userId);
     res.status(201).json(budget);
   } catch (error) {
     console.error('Failed to create budget:', error);
@@ -84,6 +86,7 @@ router.put('/:id', async (req, res) => {
       data,
       include: { category: true },
     });
+    await invalidateSummary(req.userId);
     res.json(updated);
   } catch (error) {
     console.error('Failed to update budget:', error);
@@ -103,6 +106,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     await prisma.budget.delete({ where: { id } });
+    await invalidateSummary(req.userId);
     res.json({ message: 'Budget deleted successfully' });
   } catch (error) {
     console.error('Failed to delete budget:', error);

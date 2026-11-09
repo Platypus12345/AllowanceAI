@@ -47,6 +47,13 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      # Redis — OPTIONAL, and deliberately not provisioned here. It caches the
+      # dashboard summary for 60s. config/redis.js is fail-open: unset or unreachable
+      # means every read goes straight to PostgreSQL and the numbers are identical.
+      # Never make this required — a dead optional service blocking a working path is
+      # exactly what took the live login down.
+      - key: REDIS_URL
+        sync: false
       # Setu Account Aggregator stays on sandbox. Rules.md: never flip to production
       # without an explicit instruction. Pinned here so a dashboard edit is deliberate.
       - key: SETU_ENV
