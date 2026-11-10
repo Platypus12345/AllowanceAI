@@ -84,11 +84,18 @@ Render → `allowanceai-api` → **Environment**:
 | `GOOGLE_CALLBACK_URL` | `https://allowanceai-api.onrender.com/api/auth/google/callback` |
 | `SETU_ENV` | `sandbox` |
 | `MONGO_URI` | **delete this variable** |
+| `REDIS_URL` | **leave unset** — optional cache only, see note below |
 | `JWT_SECRET` | **do not touch** — changing it logs out every existing user |
+
+> **`REDIS_URL` is optional and you do not need it.** The dashboard caches its summary in
+> Redis for 60s when one is available, and reads straight from PostgreSQL when it is not.
+> Both paths are tested and return identical numbers. Render provisions no Redis, so leaving
+> this unset is the expected production setup — not a degraded one.
 
 ### [ ] 4. Deploy and check Auto-Deploy
 
-Render → **Manual Deploy → Deploy latest commit** (must be `86b2852` or newer).
+Render → **Manual Deploy → Deploy latest commit** (must be `c23ff7a` or newer — that is
+the one with the v2 dashboard, without it login lands on a broken page).
 
 Then Render → **Settings → Build & Deploy → Auto-Deploy** = **On**, branch `main`.
 Otherwise every future push needs a manual deploy.
@@ -133,11 +140,20 @@ https://allowanceai-api.onrender.com/api/auth/google/callback
 3. Log out, log back in
 4. Try **Sign in with Google**
 
+5. You should land on the **v2 dashboard**: spend this month, budget bars, goals, recent
+   transactions, and an "Add a spend" form. Add one — the numbers update immediately.
+
+**This changed on 2026-11-10.** Before, every screen in the client called v1 Mongoose
+routes, including the dashboard itself (`/budget/stats`). With `MONGO_URI` deleted you
+would have logged in successfully and landed on a page that returned 500. The v2 dashboard
+now reads PostgreSQL and is what `/` serves.
+
 **Known broken, don't be surprised:** "Forgot password" returns 404 (the route no longer
 exists on the Prisma auth router), and the old v1 screens — expenses, jars, splits,
-wishlist, friends — will fail because they still call Mongoose routes and `MONGO_URI` is
-gone. Both are logged in Tracker.md Backlog. **For your presentation, demo
-login → budgets → goals → transactions.** That path is on PostgreSQL and tested.
+wishlist, friends, and the old dashboard now parked at `/v1` — still call Mongoose routes
+and will fail with `MONGO_URI` gone. All logged in Tracker.md. **For your presentation,
+demo the landing dashboard: add a spend → watch the budget bar and totals move.** That
+whole path is on PostgreSQL and tested end-to-end.
 
 ---
 
@@ -157,7 +173,11 @@ Evidence it is not us:
 - The same suite was run locally against a **fresh, empty** database under CI conditions
   (all 5 test files racing to migrate a blank DB): **28 tests, 28 pass, 0 fail.**
 
-### [ ] Re-run CI once https://www.githubstatus.com shows Actions operational
+### [x] Re-run CI — DONE, it went green
+
+**Resolved 2026-11-10.** GitHub reported All Systems Operational, the run was re-triggered
+on the *same commit* with no code change, and all jobs passed. Confirms the red ✗ was the
+outage. Nothing was wrong with the repo. Original instructions kept below for reference.
 
 ```powershell
 cd C:UsersAdityaDesktopAllowanceAIallowance-ai
