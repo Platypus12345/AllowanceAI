@@ -49,6 +49,16 @@
   - [x] Fixed a real defect found while doing this: an open Redis client kept `node --test`
         alive forever, hanging the suite. Every persistence test now closes it in `after`,
         exactly as it already closed Prisma. Suite **38 pass / 0 fail** with Redis AND without.
+  - [x] **v2 dashboard UI (`DashboardV2Page` + `AddTransactionForm`).** The first screen in
+        this client that talks to PostgreSQL. Reads `GET /api/dashboard/summary` and
+        `/categories`; writes through `POST /api/transactions`. Shows month/today spend,
+        per-budget progress bars, goal progress, and the 10 latest transactions tagged by
+        source (SMS / Bank / Manual). Surfaces the duplicate flag in the UI, so a flagged
+        row does not look like a missing number. Routed at `/` and `/dashboard`, so login
+        now lands on a page that works; the v1 Mongoose dashboard moved to `/v1`.
+        Verified: `vite build` passes, eslint clean, and a booted server driven end-to-end
+        (register -> category -> budget -> goal -> transaction -> summary) returns exactly
+        the shape the page reads. Cache confirmed live: miss -> hit -> busted by a write.
 
 ## Review
 _(empty)_
