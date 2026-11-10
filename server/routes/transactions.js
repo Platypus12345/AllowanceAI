@@ -3,6 +3,7 @@ const verifyJWT = require('../middleware/verifyJWT');
 const prisma = require('../config/prisma');
 const ingest = require('../services/ingestService');
 const { invalidateSummary } = require('../services/dashboardService');
+const { publishToUser } = require('../services/realtime');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -63,6 +64,7 @@ router.post('/', async (req, res) => {
     });
 
     await invalidateSummary(req.userId);
+    publishToUser(req.userId, { type: 'transaction.created' });
     res.status(201).json(result);
   } catch (error) {
     console.error('Create manual transaction failed:', error);

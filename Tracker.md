@@ -14,8 +14,13 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] Phase 3: websocket push so a new transaction updates the dashboard with no refresh (Phase 3 DoD)
-- [ ] Phase 3: retire or hide the v1 Mongoose-backed screens once the v2 dashboard lands (supersedes the two v1-breakage Backlog cards)
+- [ ] **Phase 3 remainder: safety score + safe-to-spend on the dashboard.** ImplementationPlan
+      lists these alongside recent transactions; the DoD gate ("adding a transaction updates
+      the dashboard live") is met without them, but the phase is not fully delivered until
+      they are. v1 has the maths in `server/utils/financialHealth.js`, which is Mongo-shaped
+      and needs porting to Prisma rather than copying.
+- [ ] Phase 3: retire or hide the v1 Mongoose-backed screens now the v2 dashboard has landed
+      (supersedes the two v1-breakage Backlog cards). The old dashboard is parked at `/v1`.
 
 ## In Progress
 - [ ] **Phase 3: v2 dashboard on the Prisma API.** Discovered 2026-11-10: the client calls
@@ -59,6 +64,20 @@
         Verified: `vite build` passes, eslint clean, and a booted server driven end-to-end
         (register -> category -> budget -> goal -> transaction -> summary) returns exactly
         the shape the page reads. Cache confirmed live: miss -> hit -> busted by a write.
+  - [x] **Websocket push (Phase 3 DoD).** `ws` on `/ws`, JWT in the query string because the
+        browser WebSocket API cannot set an Authorization header. A transaction created from
+        anywhere — mobile SMS parser, Setu AA pull, another tab — pushes to every open socket
+        of *that* user only. Fail-open: `attach` is wrapped so a websocket failure cannot stop
+        the HTTP API, and the client hook degrades silently to action-driven refresh.
+        Chose `ws` over socket.io: this is one-way "something changed, refetch", so the
+        protocol, rooms and client bundle buy nothing; reconnect lives in the client hook,
+        with backoff and a stop on 4401 so a bad token cannot cause a tight reconnect loop.
+        Proven (`phase3.realtime.test.js`, 5 tests) with real sockets against a real server:
+        push arrives unprompted, a second user receives **nothing** (asserted by timeout, the
+        only honest way to show an absent message), both of one user's devices are notified,
+        no/junk/wrong-secret tokens are all closed, and a closed socket is forgotten so dead
+        connections cannot accumulate. **Negative control:** disabling the push fails 3 of 5.
+        Suite **43 pass / 0 fail**, with Redis and without.
 
 ## Review
 _(empty)_

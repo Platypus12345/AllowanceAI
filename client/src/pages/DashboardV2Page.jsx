@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import AddTransactionForm from '../components/AddTransactionForm';
+import useLiveUpdates from '../hooks/useLiveUpdates';
 
 const inr = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -96,6 +97,16 @@ export default function DashboardV2Page() {
     load();
   }, [load]);
 
+  // A transaction can arrive without this tab doing anything — the mobile SMS parser,
+  // a Setu AA pull, another browser. Refetch when the server says so. `fresh` bypasses
+  // the 60s cache, which the write already invalidated, but a cache the server could
+  // not reach would otherwise leave this showing a stale number.
+  const { connected } = useLiveUpdates(
+    useCallback(() => {
+      load({ fresh: true });
+    }, [load])
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-surface text-on-surface grid place-items-center">
@@ -118,8 +129,14 @@ export default function DashboardV2Page() {
             <h1 className="text-3xl font-extrabold tracking-tight">
               {user?.name ? `Hey, ${user.name.split(' ')[0]}` : 'Your money'}
             </h1>
-            <p className="text-sm text-on-surface-variant">
-              This month so far{summary?.cached ? ' · cached' : ''}
+            <p className="flex items-center gap-2 text-sm text-on-surface-variant">
+              This month so far
+              {connected ? (
+                <span className="flex items-center gap-1.5 text-secondary">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary" />
+                  Live
+                </span>
+              ) : null}
             </p>
           </div>
           <div className="flex items-center gap-2">

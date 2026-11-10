@@ -2,6 +2,7 @@ const express = require('express');
 const verifyJWT = require('../middleware/verifyJWT');
 const ingest = require('../services/ingestService');
 const { invalidateSummary } = require('../services/dashboardService');
+const { publishToUser } = require('../services/realtime');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -19,6 +20,7 @@ router.post('/sms', async (req, res) => {
       receivedAt,
     });
     await invalidateSummary(req.userId);
+    publishToUser(req.userId, { type: 'transaction.created' });
     res.status(201).json({
       ...ingest.serializeTransaction(result.transaction),
       duplicateOf: result.duplicateOf,
@@ -56,6 +58,7 @@ router.post('/setu', async (req, res) => {
       fiData,
     });
     await invalidateSummary(req.userId);
+    publishToUser(req.userId, { type: 'transaction.created' });
     res.status(201).json({
       linkedAccount,
       transactions: results.map((r) => ({

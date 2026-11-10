@@ -213,7 +213,7 @@ const PORT = process.env.PORT || 5000;
 // Listen immediately so a Render cold start stops showing the loading page.
 // PostgreSQL (Prisma) is the v2 source of truth and connects lazily per query.
 // Mongo is legacy v1 only: it is OPTIONAL and must never block boot or login.
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`CLIENT_URL redirect base: ${getClientBaseUrl()}`);
   console.log(`Google callback: ${getGoogleCallbackUrl()}`);
@@ -248,3 +248,12 @@ app.listen(PORT, '0.0.0.0', () => {
       }, 5000);
     });
 });
+
+// Websocket push on /ws. Attached after listen so a failure here can never stop the
+// HTTP API from serving — real-time is an enhancement, not a requirement.
+try {
+  require('./services/realtime').attach(httpServer);
+  console.log('Websocket server attached on /ws');
+} catch (err) {
+  console.error('Websocket attach failed (non-fatal):', err.message);
+}
