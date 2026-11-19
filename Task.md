@@ -4,7 +4,7 @@ This is your checklist. Claude keeps it updated; it holds **only** the steps tha
 your hands (dashboards, secrets, browser clicks). Everything Claude can do itself goes in
 [Tracker.md](Tracker.md) instead.
 
-Last updated: 2026-11-10 — step 1 verified done, CI re-run after the GitHub outage cleared. Full server suite: **28 tests, 28 pass, 0 fail.**
+Last updated: 2026-11-19 — steps 1 and 2 done, categories seeded. **Next: step 3 (Render env vars).** Full server suite: **28 tests, 28 pass, 0 fail.**
 
 **Never paste a password, connection string or API key into chat.** Set them in the
 provider dashboards yourself. Nothing secret belongs in this repo.
@@ -46,7 +46,23 @@ Check it worked: `SELECT '[1,2,3]'::vector;` should return `[1,2,3]`, not an err
 > dies with `ERROR: type "vector" does not exist`. **Clicking "enable vector" in the Supabase
 > dashboard UI is what puts it in the wrong schema.** So do it with the SQL above.
 
-### [ ] 2. Apply the database migrations from your machine
+### [x] 2. Apply the database migrations — DONE
+
+**Applied 2026-11-19.** `Applying migration 20261005000000_init` → `All migrations have been
+successfully applied`, against
+`aws-0-ap-northeast-2.pooler.supabase.com:5432`. Verified independently: all 12 tables
+present (`users`, `transactions`, `linked_accounts`, `budgets`, `goals`, `categories`,
+`documents`, `badges`, `user_badges`, `notifications`, `audit_log`, `_prisma_migrations`)
+and `vector` confirmed in schema `public`.
+
+> **Gotcha worth remembering.** `server/.env` defines `DATABASE_URL` and `DIRECT_URL`
+> pointing at the **local** docker Postgres on `127.0.0.1:5433`, which is already migrated.
+> If the shell variables do not take, Prisma connects there instead, prints
+> `No pending migrations to apply.` and touches Supabase not at all — a success message for
+> work that never happened. Always check the `Datasource "db": ... at "<host>"` line Prisma
+> prints: it names the database that is actually about to change.
+
+Original instructions kept below for a rebuild.
 
 Get both strings from Supabase → **Connect**. Do not hand-build the hostname.
 
@@ -212,7 +228,13 @@ code for these until you say so.
 
 ## 🔵 OPTIONAL — after step 2 succeeds
 
-### [ ] Seed the default categories on Supabase
+### [x] Seed the default categories on Supabase — DONE
+
+**Seeded 2026-11-19.** `Created 6 default categories: Food, Transport, Shopping,
+Entertainment, Health, Other`. Re-ran to confirm idempotency:
+`All 6 default categories already present — nothing to do.` All six verified in Supabase as
+system rows (`is_default = true`, `user_id IS NULL`), so every new account sees them without
+creating anything.
 
 New accounts otherwise land on an empty category list. Safe to re-run, and it never
 touches a user’s own categories. Check first, then write:
