@@ -206,23 +206,27 @@ Do not change any code to "fix" this — there is nothing to fix.
 
 ---
 
-## 🟡 DECISIONS CLAUDE IS WAITING ON
+## ✅ DECISIONS — MADE 2026-11-25, nothing pending
 
-From [docs/Proposals.md](docs/Proposals.md). Nothing is implemented. Reply with the numbers
-you approve — e.g. "do P1, P3, P4".
+You approved **P1, P2, P3, P4**. They are written into the specs; no action left for you.
 
-| # | Decision | Claude's recommendation |
+| # | Decision | Outcome |
 |---|---|---|
-| P1 | Hybrid retrieval (pgvector + full-text, RRF fusion) | **adopt now** — decide before Phase 4 code exists |
-| P3 | Deterministic Recall@K CI gate; Ragas → nightly | **adopt now** — changes a committed Phase 5 DoD, so needs your word |
-| P4 | Transactions: one row → one sentence, no chunking | **adopt now** |
-| P2 | Pin embeddings to `bge-small-en-v1.5` (384-dim) | **adopt now** — docs only, you're already locked in by the schema |
-| P6 | LLM: local embeddings + swappable small chat model | **adopt later** (Phase 4) |
-| P9 | Drop RabbitMQ from the critical path | your call — contradicts a Rules.md mandate |
-| P10 / P11 | Reranking / query rewriting | **skip for now** |
+| P1 | Hybrid retrieval (pgvector + full-text, RRF fusion) | ✅ adopted — TechSpec §3, Schema §3/§4 |
+| P2 | Pin embeddings to `bge-small-en-v1.5` (384-dim, local) | ✅ adopted — TechSpec §3.1 |
+| P3 | Deterministic Recall@K CI gate; Ragas → nightly | ✅ adopted — Phase 5 DoD rewritten |
+| P4 | Transactions: one row → one sentence, no chunking | ✅ adopted — TechSpec §3.2 |
+| P9 | Drop RabbitMQ from the critical path | ❌ **not** adopted — Rules.md mandate stands |
+| P6 | LLM: local embeddings + swappable small chat model | deferred to Phase 4 |
+| P10 / P11 | Reranking / query rewriting | skipped |
 
-Approved items go: docs commit first, then implementation. Claude will not touch specs or
-code for these until you say so.
+**One thing this buys you for the presentation:** P2 is a good answer to "why 384
+dimensions?" — the column was already `vector(384)`, which silently rules out most current
+embedding models (768, 1024, 3072). Naming that constraint out loud, and the fact that
+changing it later costs a migration *plus* a full re-embed, is the kind of detail a
+knowledgeable reviewer probes for.
+
+Still open and genuinely undecided: P5, P7, P8, P10, P11 — none of them block a demo.
 
 ---
 

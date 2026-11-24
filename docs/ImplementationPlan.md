@@ -73,17 +73,48 @@ A test against the **real** Postgres from `docker-compose.yml` / the CI `pgvecto
 
 ## Phase 4 — RAG assistant (`ai-service/`)
 **Goal:** the assistant answers questions grounded in the user's real data.
-- Embedding pipeline: transaction summaries + user notes → `documents` table
-- LangGraph graph: retrieve → rules → generate
+- Embedding pipeline: transaction summaries + user notes → `documents` table.
+  **One transaction row → one templated sentence, no chunking** (TechSpec §3.2, P4).
+  Embeddings from local `bge-small-en-v1.5`, 384-dim (TechSpec §3.1, P2).
+- Migration: `documents.chunk_tsv` generated `tsvector` column + GIN index (Schema.md §3, P1)
+- LangGraph graph: retrieve → rules → generate. **Retrieve is hybrid** — dense + Postgres FTS
+  fused with RRF, `hnsw.iterative_scan = 'relaxed_order'`, tie-broken on `id ASC` (TechSpec §3, P1)
 - Chat endpoint + websocket streaming
+
 **DoD:** asking "how much did I spend on X this week" returns a correct, grounded answer.
+
+Additionally, because the retrieval design is now fixed before the code exists:
+1. A test proves the hybrid retriever beats **both** single arms on a question whose answer
+   hinges on an exact token (a merchant name or UPI handle), run against real Postgres —
+   this is the whole reason for adopting P1 and it should not be taken on faith.
+2. A test proves the same question returns the same ordering twice (the `id ASC` tiebreaker).
+3. A test proves a user-filtered query still returns `LIMIT k` rows (the
+   `hnsw.iterative_scan` setting), and that retrieval **never** crosses `user_id`.
+4. Every graph node has a unit test that runs without hitting a real LLM API (Rules.md).
 
 ## Phase 5 — Eval & guardrails layer
 **Goal:** the AI's output quality is measured, not assumed.
 - Guardrails AI validation node added to the LangGraph graph
-- Ragas eval set (10-20 hand-written Q/A pairs) + CI job scoring retrieval/answer quality
+- **Deterministic retrieval gate** in `ai-service/eval/`: 15-20 golden question →
+  expected-chunk-id pairs, scored Recall@K / MRR / NDCG in numpy. No LLM, no key, no network.
+- Ragas eval set for faithfulness + answer relevancy, run **nightly or manually**
 - Langfuse tracing wired into every graph run
-**DoD:** CI shows a Ragas score on every PR touching `ai-service/`; a real trace is viewable in Langfuse for a sample conversation.
+
+**DoD (revised 2026-11-25, adopting P3 — supersedes the original "Ragas score on every PR"):**
+- CI shows a **deterministic** Recall@K / MRR / NDCG score on every PR touching `ai-service/`,
+  and **fails the build** when it regresses below the committed threshold. It must pass with
+  **no API key present** — a gate that needs credits is a gate that gets disabled.
+- The same commit scores identically on a re-run with no code change. A gate that flakes is
+  not a gate.
+- Ragas runs nightly (or on demand) and its faithfulness / answer-relevancy scores are
+  recorded; a drop is investigated, it just does not block a PR.
+- A real trace for a sample conversation is viewable in Langfuse.
+
+**Why this changed.** Ragas metrics are LLM-as-judge: non-deterministic, token-costing,
+rate-limited on a free tier, and they need a key in CI. The original DoD was therefore not
+satisfiable for free or reproducibly. Per Rules.md the eval bar may not be *lowered* — Ragas
+is retained in full, so this adds a deterministic gate rather than removing a metric. See
+`docs/Proposals.md` P3.
 
 ## Phase 6 — Gamification + notifications + Financial Wrapped
 **Goal:** the "soul" features that make this feel like a real product, not a demo.

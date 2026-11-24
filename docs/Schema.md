@@ -92,10 +92,12 @@ documents (
   source_type TEXT NOT NULL,        -- 'transaction_summary' | 'chat_turn' | 'user_note'
   source_id UUID,                   -- points back to the originating row where applicable
   chunk_text TEXT NOT NULL,
-  embedding VECTOR(384),            -- adjust dimension to match the embedding model used
+  chunk_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', chunk_text)) STORED,
+  embedding VECTOR(384),            -- FROZEN at 384: bge-small-en-v1.5 (TechSpec 3.1)
   created_at TIMESTAMP DEFAULT NOW()
 )
--- index: CREATE INDEX ON documents USING hnsw (embedding vector_cosine_ops);
+-- dense arm:   CREATE INDEX ON documents USING hnsw (embedding vector_cosine_ops);
+-- lexical arm: CREATE INDEX ON documents USING gin (chunk_tsv);
 
 audit_log (
   id SERIAL PRIMARY KEY,
@@ -117,11 +119,28 @@ audit_log (
 
 ## 3. Notes on `documents` / pgvector
 
-- Embedding dimension must match whatever model is chosen in `ai-service/` (e.g. 384 for `all-MiniLM-L6-v2`) — if the model changes later, the column and all existing rows must be re-embedded, not just new ones.
-- `documents` is scoped per-user (`user_id`) — retrieval queries must always filter by `user_id` first, then similarity-rank within that filter. Never let similarity search cross user boundaries.
+- **The embedding dimension is frozen at 384**, pinned to `bge-small-en-v1.5` (TechSpec §3.1).
+  Changing the model's dimension means a migration *plus* a full re-embed of every existing
+  row, not just new ones. Decide once; this is that decision.
+- `documents` is scoped per-user (`user_id`) — retrieval queries must always filter by
+  `user_id` first, then rank within that filter. Never let similarity search cross user
+  boundaries.
+- **Retrieval is hybrid** (TechSpec §3, P1): dense cosine over `embedding` plus Postgres FTS
+  over the generated `chunk_tsv` column, fused with RRF. `chunk_tsv` is `GENERATED ALWAYS ...
+  STORED`, so it can never drift out of sync with `chunk_text` — there is no application code
+  that could forget to update it.
+- **Because every query is user-filtered**, the retrieve node must
+  `SET LOCAL hnsw.iterative_scan = 'relaxed_order'` inside its transaction. On pgvector 0.8+
+  a strict `WHERE user_id = ...` against HNSW can otherwise return fewer than `LIMIT k` rows.
+- Tie-break retrieval ordering on `id ASC` after the fused score, or the deterministic CI
+  eval gate (TechSpec §4) flakes on unchanged code.
+- **Transaction rows are never chunked** — one row becomes one templated sentence (TechSpec
+  §3.2). Chunking is only for free-text user notes.
 
 ## 4. Indexing notes
 
 - `transactions(user_id, occurred_at)` — composite index, this is the most common query pattern (user's transactions in a date range).
-- `documents` — HNSW index on `embedding` for approximate nearest-neighbor search at read time.
+- `documents` — HNSW index on `embedding` for approximate nearest-neighbour search, **and** a
+  GIN index on the generated `chunk_tsv` column for the lexical arm of hybrid retrieval. Both
+  are required: dropping either silently halves retrieval quality rather than erroring.
 - Foreign keys throughout should cascade on user deletion (`ON DELETE CASCADE`) for clean account deletion.

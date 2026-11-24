@@ -1,8 +1,14 @@
 # AllowanceAI — Proposals
 
-Status: **none of this is implemented or approved.** Every item below is a proposal
-awaiting Aditya's decision. Nothing here changed any spec or code. Approved items go
-through docs first (separate commit), then implementation, per Rules.md.
+Status: **P1, P2, P3 and P4 were approved by Aditya on 2026-11-25** and are now written into
+the specs (`TechSpec.md` §3, §3.1, §3.2, §4; `Schema.md` §1, §3, §4;
+`ImplementationPlan.md` Phase 4 and Phase 5). The specs, not this file, are authoritative for
+them from here on — this file is kept as the rationale and the evidence trail.
+
+**P5 and P7–P11 remain proposals awaiting a decision.** In particular **P9 (drop RabbitMQ
+from the critical path) was NOT approved** — the Rules.md RabbitMQ mandate stands. P10 and
+P11 stay skipped. Approved items go through docs first (separate commit), then
+implementation, per Rules.md.
 
 Written 2026-11-09. Each claim is either verified against a source linked at the bottom,
 reproduced locally (marked **reproduced**), or flagged as my judgement.
@@ -17,15 +23,15 @@ option is not worth it at this scale, I say so — see P9, P10 and P11.
 
 | # | Proposal | Recommendation | Effort | Touches |
 |---|---|---|---|---|
-| P1 | Hybrid retrieval: pgvector + Postgres FTS fused with RRF | **adopt now** (Phase 4 design) | M | Schema, TechSpec |
-| P2 | Pin the embedding model to a 384-dim local model | **adopt now** (decision, no code) | S | TechSpec |
-| P3 | Deterministic retrieval eval in CI; demote Ragas to nightly | **adopt now** (Phase 5 DoD) | M | ImplementationPlan, TechSpec |
-| P4 | Transaction "chunking": one row → one deterministic sentence | **adopt now** (Phase 4 design) | S | TechSpec, Schema |
+| P1 | Hybrid retrieval: pgvector + Postgres FTS fused with RRF | ✅ **APPROVED 2026-11-25** — in TechSpec §3, Schema §3 | M | Schema, TechSpec |
+| P2 | Pin the embedding model to a 384-dim local model | ✅ **APPROVED 2026-11-25** — `bge-small-en-v1.5`, TechSpec §3.1 | S | TechSpec |
+| P3 | Deterministic retrieval eval in CI; demote Ragas to nightly | ✅ **APPROVED 2026-11-25** — Phase 5 DoD revised | M | ImplementationPlan, TechSpec |
+| P4 | Transaction "chunking": one row → one deterministic sentence | ✅ **APPROVED 2026-11-25** — TechSpec §3.2 | S | TechSpec, Schema |
 | P5 | Keep LangGraph, but keep the graph linear — no agentic RAG | **adopt now** (confirms TechSpec) | — | TechSpec note |
 | P6 | Model strategy built for longevity, not one vendor free tier | **adopt later** (Phase 4); principle now | S | TechSpec, .env.example |
 | P7 | Guardrails: Pydantic + a numeric cross-check before Guardrails AI | **adopt later** (Phase 5) | M | TechSpec |
 | P8 | MCP server exposing AllowanceAI as read-only tools | **adopt later** (post-Phase 5) | L | TechSpec, new phase |
-| P9 | Drop RabbitMQ from the critical path | **adopt later / partial** | S | TechSpec, Rules |
+| P9 | Drop RabbitMQ from the critical path | ❌ **NOT approved 2026-11-25** — Rules.md mandate stands | S | TechSpec, Rules |
 | P10 | Cross-encoder reranking | **skip for now** | M | — |
 | P11 | LLM query rewriting | **skip for now** | S | — |
 

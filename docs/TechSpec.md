@@ -24,22 +24,102 @@ v1 used MongoDB. This rebuild moves to PostgreSQL because:
 
 **Orchestration:** LangGraph defines the assistant as a graph, not a single prompt call:
 
-1. **Retrieve node** — embed the user's question, query pgvector for top-k relevant transactions/notes/past chat turns.
+1. **Retrieve node** — **hybrid retrieval** (adopted P1, 2026-11-25). Two retrievers run per
+   question and their ranked lists are fused with Reciprocal Rank Fusion
+   (`score = Σ 1/(k + rank)`, `k = 60`):
+   - **Dense:** embed the question, cosine-search `documents.embedding` via the HNSW index.
+   - **Lexical:** Postgres full-text search over `documents.chunk_tsv` via its GIN index.
+
+   Dense search alone loses at rank 1 on exact tokens — a merchant name, a UPI handle, a
+   reference number — which for a finance assistant is the *common* query, not the edge case.
+   Lexical alone collapses on paraphrases. Both halves live inside the Postgres already
+   running, so this adds no service and no dependency.
+
+   Two non-optional details:
+   - Every AllowanceAI query filters by `user_id`. Against an HNSW index on pgvector 0.8+ a
+     strict filter can return **fewer than `LIMIT k` rows**, so the retrieve node must
+     `SET LOCAL hnsw.iterative_scan = 'relaxed_order'` inside its transaction.
+   - Order by `rrf_score DESC, id ASC`. Without the deterministic tiebreaker, ties return in
+     arbitrary heap order and the CI eval gate (§4) flakes between runs on unchanged code.
 2. **Rules node** — pull hard budget facts directly from Postgres (not retrieval — exact numbers should never be "approximately retrieved").
 3. **Generate node** — LLM call with retrieved context + rules + recent chat history (from Redis) injected into the prompt.
 4. **Guardrails node** — Guardrails AI validates the output (no hallucinated numbers, no advice outside scope, structured where needed) before it's returned.
 
 **Why split retrieval (§1) from rules (§2):** amounts/balances must come from a direct DB query, never from vector similarity — RAG is for *context and history*, not for numbers that must be exact.
 
+### 3.1 Embedding model — pinned (adopted P2, 2026-11-25)
+
+**`bge-small-en-v1.5`, 384 dimensions, run locally via sentence-transformers.**
+
+`vector(384)` in `Schema.md` / `schema.prisma` is a real constraint, not a neutral default:
+it excludes `nomic-embed-text` (768), `EmbeddingGemma-300M` (768), `BGE-M3` (1024) and
+`gemini-embedding-001` (3072). The live choice at 384 dims was `bge-small-en-v1.5` (MIT) vs
+`all-MiniLM-L6-v2` (Apache 2.0); we take the former — same dimension and size class, better
+published retrieval quality.
+
+**Why a local model rather than a free embedding API.** Embeddings are generated on *every
+ingested transaction*, not only on user questions. A free tier metered per day is the wrong
+shape for that — one backfill of a month of transactions can exhaust a daily quota. Local
+means no quota, no key to leak, no network failure mode, and it runs in CI for free, which
+the §4 gate depends on.
+
+**Cost of changing it later:** a migration *plus* a full re-embed of every row. Treat the
+dimension as frozen.
+
+> Render's free tier is memory-constrained. Embedding generation belongs in `ai-service/`;
+> watch RSS when the model loads (~130 MB download).
+
+### 3.2 Transaction → document text (adopted P4, 2026-11-25)
+
+**Transactions are not chunked.** One row renders to one deterministic sentence from a fixed
+template and that sentence is embedded:
+
+```
+2026-01-15 · debit ₹349.00 · SYNTHETIC MART · source=sms
+```
+
+`user_id`, `occurred_at`, `amount` and `source` stay as filterable columns rather than being
+buried in prose, so the rules node (§2) can still get exact numbers by SQL.
+
+**Why not a generic chunker.** Sliding-window chunkers on structured financial rows produce
+chunks with 80–94% token overlap, which stuffs near-duplicate text into the prompt and
+**makes the LLM hallucinate numbers** — the single worst failure mode this product has. They
+also truncate table rows and cut mid-sentence.
+
+Structure-aware chunking is reserved for genuinely free text (user notes): split on headings
+and paragraphs, never mid-table or mid-sentence.
+
 ## 4. Eval & guardrails
 
 | Tool | Role | Cost |
 |---|---|---|
 | Guardrails AI | Runtime validation of every AI reply before it reaches the user | Free, open source |
-| Ragas | Offline eval of retrieval + answer quality, run in CI on a fixed test set | Free, open source |
+| Deterministic retrieval gate | **CI, every PR** — Recall@K / MRR / NDCG in plain numpy against a golden question → expected-chunk-id set. No LLM, no key, no network | Free |
+| Ragas | **Nightly / manual** — faithfulness and answer relevancy, where an LLM judge genuinely is the right tool | Free, open source |
 | Langfuse | Traces every LangGraph run (self-hosted or free cloud tier) for debugging and demo-ability | Free (self-host or free tier) |
 
-Ragas eval runs as a GitHub Actions job on a small hand-written eval set (see Rules.md) — this becomes a real CI badge in the README, not a claim.
+**Evaluation is split in two (adopted P3, 2026-11-25).** Ragas metrics are mostly
+LLM-as-judge: every run costs tokens, needs a key in CI, is rate-limited on a free tier, and
+is **non-deterministic** — the same code can score differently twice. A PR gate has to be
+reproducible, so:
+
+- **CI gate on every PR:** a golden set of question → expected-chunk-id pairs scored with
+  Recall@K, MRR and NDCG in numpy. Deterministic, runs in seconds, needs no credits, and
+  fails the build on a real regression. Retrieval misses are the large majority of bad
+  answers, so this is the gate that earns its place.
+- **Nightly or manual:** Ragas for faithfulness and answer relevancy. Kept, not deleted —
+  retrieval metrics say nothing about generation quality.
+
+This makes the README's CI badge mean something verifiable instead of drifting with judge
+variance, and keeps the whole eval runnable on zero credits. Per Rules.md the eval bar may
+not be lowered: the deeper metric survives, so this raises the gate's reliability rather
+than weakening it. The eval set still grows every time a retrieval or generation bug is
+found.
+
+**Considered and rejected:** DeepEval (pytest-shaped, but pulls in a metric catalogue we do
+not need and its interesting metrics are also LLM-judged), promptfoo (strong for prompt A/B
+and red-teaming, not RAG retrieval metrics), Phoenix (reasonable Langfuse substitute, no real
+gain here). Langfuse stays — tracing is a different job from scoring.
 
 ## 5. Data ingestion subsystem
 
