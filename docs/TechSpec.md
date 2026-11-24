@@ -35,12 +35,35 @@ v1 used MongoDB. This rebuild moves to PostgreSQL because:
    Lexical alone collapses on paraphrases. Both halves live inside the Postgres already
    running, so this adds no service and no dependency.
 
-   Two non-optional details:
+   Three non-optional details. Every one is a **silent** failure — no exception, just
+   quietly worse answers:
    - Every AllowanceAI query filters by `user_id`. Against an HNSW index on pgvector 0.8+ a
      strict filter can return **fewer than `LIMIT k` rows**, so the retrieve node must
      `SET LOCAL hnsw.iterative_scan = 'relaxed_order'` inside its transaction.
    - Order by `rrf_score DESC, id ASC`. Without the deterministic tiebreaker, ties return in
      arbitrary heap order and the CI eval gate (§4) flakes between runs on unchanged code.
+   - **The lexical query must be OR-joined, not AND-joined.** `websearch_to_tsquery` joins
+     terms with `AND`, which is right for a search box and wrong for retrieval: *"how much
+     did I spend at ZORVEX PANTRY"* parses to `'much' & 'spend' & 'zorvex' & 'pantri'`, and
+     a transaction sentence carries the merchant but none of the filler, so the match fails.
+     Verified on the live container: the AND form returns `false` on the very row it should
+     rank first; the OR form returns `true`. **Found by a failing test, not by reading the
+     documentation** — it had disabled the entire lexical arm for every natural-language
+     question, with hybrid silently degrading to dense-only. The implementation runs
+     `websearch_to_tsquery` first and only then swaps the operator, so the user's text is
+     still parsed and escaped by Postgres; a punctuation-only query yields an empty tsquery
+     that matches nothing, and a quoted phrase keeps its `<->` operator.
+
+   **Measured benefit on our data, not the source's.** Proposals.md cited a benchmark where
+   dense-only scored 73% Recall@1 and hybrid 100%. On AllowanceAI's data shape the gap is
+   **narrower**: for a distinctive merchant name or a UPI handle the dense arm alone already
+   ranks the right row #1, because subword tokenisation handles invented brand tokens well.
+   The measured win is specifically on **numeric and reference-style identifiers** — e.g.
+   *"transaction with reference 884421"*, where dense puts the target at #2, lexical at #1
+   and hybrid at #1. There is also a measured **cost**: a row only the semantic arm found
+   scores one RRF term against two, so it can be demoted a place or two. All three
+   behaviours are pinned by tests in `ai-service/tests/test_retrieval.py`, including a guard
+   assertion that fails if the corpus stops exercising the hybrid case at all.
 2. **Rules node** — pull hard budget facts directly from Postgres (not retrieval — exact numbers should never be "approximately retrieved").
 3. **Generate node** — LLM call with retrieved context + rules + recent chat history (from Redis) injected into the prompt.
 4. **Guardrails node** — Guardrails AI validates the output (no hallucinated numbers, no advice outside scope, structured where needed) before it's returned.
@@ -66,8 +89,27 @@ the §4 gate depends on.
 **Cost of changing it later:** a migration *plus* a full re-embed of every row. Treat the
 dimension as frozen.
 
-> Render's free tier is memory-constrained. Embedding generation belongs in `ai-service/`;
-> watch RSS when the model loads (~130 MB download).
+**Runtime: fastembed (onnxruntime), not sentence-transformers — deviation recorded
+2026-11-25.** The *model* and the dimension are exactly as pinned above; only the runtime
+differs. sentence-transformers pulls torch, on the order of a gigabyte installed, which
+does not fit the free tier this section's own rationale is written around and makes a CI
+install slow enough that people start skipping it. Measured here: the whole fastembed stack
+is **203 MB** of site-packages (54 MB of it onnxruntime) plus a **65 MB** model, and the
+model loads in ~10s.
+
+Two honest caveats, because this is a real difference and not only packaging:
+
+- fastembed resolves `BAAI/bge-small-en-v1.5` to Qdrant's **int8-quantized** ONNX export
+  (`qdrant/bge-small-en-v1.5-onnx-q`), not the fp32 original. Quantization perturbs vectors
+  slightly, so cosine distances are not bit-identical to a sentence-transformers run. It
+  changes neither the dimension nor the tokenizer, and §4's deterministic gate measures
+  retrieval quality directly — so if quantization ever cost real recall, that gate is what
+  would catch it.
+- The model is loaded once per process behind a double-checked lock. Two concurrent requests
+  arriving before the first load completes would otherwise each construct one and double the
+  RSS, which is precisely what the free tier cannot absorb.
+
+> Embedding generation belongs in `ai-service/`; watch RSS when the model loads.
 
 ### 3.2 Transaction → document text (adopted P4, 2026-11-25)
 

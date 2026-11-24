@@ -4,3 +4,23 @@ pydantic==2.10.3
 openai==1.57.4
 python-dotenv==1.0.1
 httpx==0.28.1
+
+# ─── Phase 4: RAG ────────────────────────────────────────────────────────────────────────
+# Embeddings. fastembed runs bge-small-en-v1.5 (pinned by P2) on onnxruntime instead of
+# torch: same model, same 384 dimensions, ~203 MB of site-packages against torch's ~1 GB.
+# P2's own rationale was that Render's free tier is memory-constrained and the eval must run
+# free in CI, so the lighter runtime serves that reasoning better. See TechSpec §3.1.
+fastembed==0.7.1
+
+# Postgres access for retrieval and indexing. Prisma owns the schema; this reads and writes
+# `documents` only, with hand-written SQL, because hybrid retrieval is a single query no ORM
+# would express and the generated tsvector column is invisible to Prisma anyway.
+psycopg[binary]==3.2.3
+psycopg-pool==3.2.4
+
+# Graph orchestration (mandated by Rules.md).
+langgraph==0.2.60
+
+# ─── Dev / CI ────────────────────────────────────────────────────────────────────────────
+pytest==8.3.4
+ruff==0.8.4
