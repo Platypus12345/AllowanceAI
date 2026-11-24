@@ -155,6 +155,10 @@ model Document {
   sourceType String                       @map("source_type")
   sourceId   String?                      @map("source_id") @db.Uuid
   chunkText  String                       @map("chunk_text")
+  // Lexical arm of hybrid retrieval (TechSpec 3 / P1). GENERATED ALWAYS ... STORED in
+  // Postgres, so it is never written by application code — declared here only so Prisma
+  // does not see the column as drift.
+  chunkTsv   Unsupported("tsvector")?     @map("chunk_tsv")
   embedding  Unsupported("vector(384)")?
   createdAt  DateTime                     @default(now()) @map("created_at") @db.Timestamp()
 
