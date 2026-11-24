@@ -45,6 +45,16 @@ services:
         sync: false
       - key: AI_SERVICE_URL
         sync: false
+      # Shared secret for calling ai-service's /assistant/* endpoints. MUST match
+      # INTERNAL_API_TOKEN on allowanceai-ai exactly, so it is set by hand on both
+      # services rather than generated here (generateValue would produce two different
+      # values and the assistant would 401 forever).
+      #
+      # Unset is a safe state, not a broken one: /api/assistant/status reports
+      # configured:false and the client hides the assistant panel entirely. The
+      # dashboard, budgets, goals and ingestion are untouched either way.
+      - key: INTERNAL_API_TOKEN
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       # Redis — OPTIONAL, and deliberately not provisioned here. It caches the
@@ -64,9 +74,24 @@ services:
     runtime: python
     rootDir: ai-service
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # One worker, deliberately. The embedding model is loaded into the process and each
+    # worker would hold its own copy, which the free tier's memory ceiling cannot absorb.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /health
     envVars:
+      # Phase 4 reads and writes `documents` directly, so ai-service needs the same
+      # PostgreSQL as the API. Use the TRANSACTION pooler URL (:6543, ?pgbouncer=true) —
+      # this service runs no migrations, so it never needs DIRECT_URL.
+      - key: DATABASE_URL
+        sync: false
+      # Must match INTERNAL_API_TOKEN on allowanceai-api exactly. /assistant/* returns a
+      # user's financial history for whatever user_id it is given, so this is the only
+      # thing stopping those endpoints being called by anyone who finds the URL.
+      #
+      # Deliberately has no default and no generateValue. If it is unset, every
+      # /assistant/* endpoint answers 503 — it fails CLOSED, never open.
+      - key: INTERNAL_API_TOKEN
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL

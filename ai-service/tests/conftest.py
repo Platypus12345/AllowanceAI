@@ -40,8 +40,23 @@ def _database_available() -> bool:
         return False
 
 
+_DB_AVAILABLE = _database_available()
+
+# Locally, skipping when Docker is not running is a convenience. In CI it is a lie: the
+# workflow provisions Postgres, so an unreachable database means something is broken, and
+# a run that skips every meaningful test while reporting green is the exact silent failure
+# a CI gate exists to prevent. So CI turns the skip into a hard failure.
+_IN_CI = os.getenv("CI", "").lower() in {"1", "true", "yes"}
+
+if _IN_CI and not _DB_AVAILABLE:
+    raise RuntimeError(
+        "DATABASE_URL is unreachable in CI. These tests are about real Postgres and "
+        "pgvector behaviour, so skipping them would make a green run meaningless. "
+        f"DATABASE_URL={os.getenv('DATABASE_URL', '(unset)')!r}"
+    )
+
 requires_db = pytest.mark.skipif(
-    not _database_available(),
+    not _DB_AVAILABLE,
     reason="needs the docker-compose Postgres on 5433 (or DATABASE_URL set)",
 )
 

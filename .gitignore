@@ -56,3 +56,7 @@ mobile/ios/
 # Misc
 *.local
 dev-dist/
+
+# Local fastembed model cache (CI caches it separately; see .github/workflows/ci.yml)
+.fastembed-cache/
+ai-service/.fastembed-cache/

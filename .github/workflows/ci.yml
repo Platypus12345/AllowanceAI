@@ -62,6 +62,33 @@ jobs:
       run:
         working-directory: ai-service
 
+    # Phase 4's retrieval tests are claims about Postgres and pgvector behaviour — HNSW
+    # filtering, generated tsvector columns, RRF ordering. Mocking the database would turn
+    # them into claims about the mock, so CI provisions the real thing, same image as the
+    # server job and as local compose.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: allowance
+          POSTGRES_PASSWORD: allowance_dev_secret
+          POSTGRES_DB: allowanceai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U allowance -d allowanceai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://allowance:allowance_dev_secret@127.0.0.1:5432/allowanceai
+      DIRECT_URL: postgresql://allowance:allowance_dev_secret@127.0.0.1:5432/allowanceai
+      # conftest.py turns an unreachable database into a hard error when CI is set, rather
+      # than skipping. A run that skips every database test while reporting green is the
+      # exact silent failure a gate exists to prevent.
+      CI: "true"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -75,15 +102,50 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Lint (ruff)
+      - name: Set up Node (for the Prisma CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      # Prisma owns the schema; ai-service only reads and writes documents. So the tests
+      # need the migrations applied, and they are applied by the tool that owns them rather
+      # than duplicated as hand-written DDL here, which would drift.
+      - name: Apply migrations
+        working-directory: server
         run: |
-          pip install ruff --quiet
-          ruff check . --select E,W,F --ignore E501
+          npm ci
+          npx prisma migrate deploy
+
+      - name: Lint (ruff)
+        run: ruff check . --select E,W,F --ignore E501 --exclude venv
+
+      # The embedding model is ~65 MB and downloads on first use. Cached so the gate stays
+      # fast enough that nobody is tempted to disable it.
+      #
+      # An explicit workspace path, not `~/.cache/fastembed`: actions/cache expands `~` in
+      # `path`, but GitHub Actions does NOT expand it in an `env:` value — that is a literal
+      # string. The two would then point at different directories, the cache would never be
+      # hit, and the only symptom would be a quietly slower job.
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.fastembed-cache
+          key: fastembed-bge-small-en-v1.5-v1
 
       - name: Test (pytest)
-        run: |
-          pip install pytest --quiet
-          pytest --tb=short -q || echo "No tests yet — stub passes."
+        env:
+          FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.fastembed-cache
+        # No `|| true` and no `--if-present` fallback. This step used to end with
+        # `|| echo "No tests yet — stub passes."`, which meant a pytest failure could not
+        # fail the build: the ai-service gate was a no-op. With 76 real tests behind it,
+        # that had to go.
+        #
+        # -rs reports WHY anything was skipped: conftest.py already turns an unreachable
+        # database into a hard error when CI is set, so a skip here means something else,
+        # and a silent skip is what makes a green run meaningless.
+        run: pytest --tb=short -q -rs
 
   # ─── client (React/Vite) ─────────────────────────────────────────────────────
   client-lint-build:
