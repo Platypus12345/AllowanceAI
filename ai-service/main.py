@@ -36,9 +36,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Phase 4 RAG subsystem. Mounted as a router rather than folded into the v1 endpoints
+# below: those stuff a context block the Node server assembled from Mongoose models, while
+# /assistant/* retrieves from PostgreSQL itself. Keeping them separate means the v1 routes
+# can be deleted when the last v1 screen is ported, without unpicking the new ones.
+from rag.api import router as assistant_router  # noqa: E402
+
+app.include_router(assistant_router)
+
+
+@app.on_event("startup")
+async def _warm_embeddings() -> None:
+    """Load the embedding model at boot so the first question does not pay its ~10s cost.
+
+    Best-effort on purpose: a failure here must not stop the service starting, because the
+    v1 endpoints and the health check do not need the model at all.
+    """
+    try:
+        from rag.embeddings import warm
+
+        warm()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] embedding model did not preload: {type(exc).__name__}: {exc}")
+
+
 @app.get("/")
 async def root():
-    return {"status": "AI Service is running", "endpoints": ["/ask", "/ask/followup", "/predict", "/tips", "/health"]}
+    return {
+        "status": "AI Service is running",
+        "endpoints": [
+            "/assistant/ask",
+            "/assistant/retrieve",
+            "/assistant/index/transaction",
+            "/assistant/index/user",
+            "/assistant/health",
+            "/ask",
+            "/ask/followup",
+            "/predict",
+            "/tips",
+            "/health",
+        ],
+    }
 
 @app.get("/health")
 async def health():
