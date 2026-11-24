@@ -221,7 +221,45 @@ real OpenRouter key. To make it work **in production** it needs one shared secre
 budgets, goals, safe-to-spend and ingestion are all unaffected. So this is additive, and
 safe to do after your demo if you would rather not touch Render tonight.
 
-### [ ] A. Generate one secret
+### [ ] A. Apply the new migration to Supabase — **DO THIS FIRST**
+
+There is a **second migration** now (`20261125000000_documents_hybrid_search`). It adds the
+full-text column the assistant's keyword search reads. **Until you run this, the assistant
+will error in production** — it queries a column that is not there yet.
+
+Same shape as step 2, and still `deploy` only, never `dev`:
+
+```powershell
+cd C:\Users\Aditya\Desktop\AllowanceAI\allowance-ai\server
+$env:DATABASE_URL = "<Transaction pooler URL, port 6543, ending ?pgbouncer=true>"
+$env:DIRECT_URL    = "<Session pooler URL, port 5432>"
+npx prisma migrate deploy
+```
+
+Want to see: `2 migrations found` then
+`Applying migration 20261125000000_documents_hybrid_search`.
+
+> **Check the `Datasource "db": ... at "<host>"` line Prisma prints**, exactly as in step 2.
+> If the shell variables do not take, Prisma migrates your local docker database instead,
+> prints `No pending migrations to apply.` and touches Supabase not at all — a success
+> message for work that never happened.
+
+Confirm it landed — Supabase SQL Editor:
+
+```sql
+SELECT column_name, is_generated FROM information_schema.columns
+WHERE table_name = 'documents' AND column_name = 'chunk_tsv';
+```
+
+Expect one row, `is_generated = ALWAYS`. The column is computed by PostgreSQL from
+`chunk_text`, so it can never drift out of sync — and PostgreSQL rejects any attempt to
+write it directly.
+
+**This migration only adds a column and three indexes.** Nothing is dropped or renamed, so
+there is no data-loss risk and it does not need the sign-off Rules.md requires for
+destructive changes.
+
+### [ ] B. Generate one secret
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -230,7 +268,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 Copy it. It goes in **two** places and **must be byte-identical in both**, or the assistant
 returns 401 forever.
 
-### [ ] B. Put it on both Render services
+### [ ] C. Put it on both Render services
 
 | Service | Variable | Value |
 |---|---|---|
@@ -249,7 +287,21 @@ returns 401 forever.
 >
 > `allowanceai-ai` does **not** need `DIRECT_URL`: it never runs migrations.
 
-### [ ] C. Check it
+### [ ] D. Check Auto-Deploy is on for `allowanceai-ai` too
+
+Step 4 above turned Auto-Deploy on for `allowanceai-api`. **The AI service is a separate
+Render service with its own setting.** As of 2026-11-25 the deployed `allowanceai-ai` was
+still running pre-assistant code — `https://allowanceai-ai.onrender.com/health` answered
+200 but `/assistant/health` returned `Not Found`, which means its last deploy predates the
+assistant.
+
+Render → `allowanceai-ai` → **Settings → Build & Deploy → Auto-Deploy** = **On**, branch
+`main`. Then **Manual Deploy → Deploy latest commit** once to catch up.
+
+> Its build installs onnxruntime and downloads a 65 MB model, so the first deploy is
+> noticeably slower than the API's. That is expected.
+
+### [ ] E. Check it
 
 ```powershell
 curl.exe -s https://allowanceai-ai.onrender.com/assistant/health
@@ -264,7 +316,7 @@ curl.exe -s https://allowanceai-ai.onrender.com/assistant/health
 Then on the site: open the dashboard and ask *"How much have I spent this month?"* The
 answer shows the transactions it used, each tagged with how it was found.
 
-### [ ] D. First question will be slow — that is expected
+### [ ] F. First question will be slow — that is expected
 
 The embedding model is ~65 MB and loads on first use, and Render free instances sleep. The
 first question after a quiet spell can take 30-60s or time out once. **Ask one throwaway
