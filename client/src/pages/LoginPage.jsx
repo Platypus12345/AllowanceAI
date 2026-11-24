@@ -51,9 +51,6 @@ export default function LoginPage() {
     password: '',
   });
 
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSent, setForgotSent] = useState(false);
-  const [devResetLink, setDevResetLink] = useState('');
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -108,27 +105,6 @@ export default function LoginPage() {
       await finishAuth(res.data.token, res.data.user);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setError('');
-    setDevResetLink('');
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/forgot-password', { email: forgotEmail });
-      if (res.data.devResetLink) {
-        setDevResetLink(res.data.devResetLink);
-      }
-      setForgotSent(true);
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          'Failed to send reset email. Please try again later.'
-      );
     } finally {
       setLoading(false);
     }
@@ -443,6 +419,17 @@ export default function LoginPage() {
   }
 
   if (view === 'forgot') {
+    // Password reset is genuinely not available, not temporarily failing.
+    //
+    // The v1 flow posted to POST /api/auth/forgot-password, which does not exist on the
+    // Prisma auth router — so it returned 404 and this screen showed "Failed to send
+    // reset email. Please try again later." That is a lie: retrying never works, and it
+    // sends the user to their inbox to wait for mail nobody sent.
+    //
+    // Rebuilding it properly needs reset-token columns on `users` (a migration, applied
+    // to production by hand) plus SMTP credentials. Both are real work, neither belongs
+    // the night before a demo. Until then this screen says what is true and points at
+    // the sign-in path that does work. Tracked in Tracker.md.
     return (
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-5 relative overflow-hidden">
         <div className="w-full max-w-md z-10">
@@ -458,62 +445,32 @@ export default function LoginPage() {
           </button>
 
           <h2 className="text-3xl font-plus font-bold text-on-surface mb-2">Reset password</h2>
-          <p className="text-on-surface-variant mb-6 font-plus">Enter your email to receive a reset link</p>
 
-          {forgotSent ? (
-            <div className="glass-card border-l-4 border-l-secondary rounded-3xl p-8 text-center">
-              <div className="text-5xl mb-4">📧</div>
-              <h3 className="text-on-surface font-plus font-bold text-xl mb-2">Reset link sent!</h3>
-              <p className="text-on-surface-variant text-sm font-plus">
-                Check your email (and spam folder) for the password reset link. It expires in 1 hour.
-              </p>
-              {devResetLink && (
-                <p className="text-xs text-secondary mt-4 break-all font-mono">
-                  Dev link: {devResetLink}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setView('login');
-                  setForgotSent(false);
-                }}
-                className="mt-6 text-secondary font-plus font-bold hover:underline"
-              >
-                Back to Sign In
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleForgotPassword} className="glass-card rounded-3xl p-6 space-y-4 border border-white/10">
-              {error && (
-                <div className="bg-error/10 border border-error/30 rounded-xl p-3 text-error text-sm font-plus">
-                  {error}
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs text-on-surface-variant uppercase tracking-wide mb-1 block font-plus font-bold">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  placeholder="aditya@example.com"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  required
-                  className={inputClass}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-14 bg-primary-container rounded-2xl font-plus font-bold text-white active:scale-95 transition-all disabled:opacity-50"
-              >
-                {loading ? 'Sending...' : 'Send Reset Link'}
-              </button>
-            </form>
-          )}
+          <div className="glass-card rounded-3xl p-6 border border-white/10 space-y-4">
+            <p className="text-on-surface font-plus font-bold">
+              Email password reset is not available yet.
+            </p>
+            <p className="text-on-surface-variant text-sm font-plus">
+              AllowanceAI is being rebuilt on a new backend and password reset is one of
+              the pieces still to be reconnected. We would rather tell you that than show
+              you a &ldquo;check your inbox&rdquo; message for an email that never arrives.
+            </p>
+            <p className="text-on-surface-variant text-sm font-plus">
+              <span className="text-on-surface font-bold">Sign in with Google instead.</span>{' '}
+              If your account was created with the same email address, Google sign-in links
+              to it and logs you straight in — no password needed.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setView('login');
+                setError('');
+              }}
+              className="w-full h-14 bg-primary-container rounded-2xl font-plus font-bold text-white active:scale-95 transition-all"
+            >
+              Back to sign in
+            </button>
+          </div>
         </div>
       </div>
     );
