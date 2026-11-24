@@ -8,6 +8,7 @@
 // twice, and an aggregate that ignored it would undo Phase 2's whole point.
 
 const prisma = require('../config/prisma');
+const { computeSpendingHealth } = require('./spendingHealth');
 
 /** Start/end of the calendar month containing `now`, plus start of that day. */
 function monthWindow(now = new Date()) {
@@ -37,7 +38,7 @@ async function buildSummary(userId, now = new Date()) {
     occurredAt: { gte: start, lt: end },
   };
 
-  const [monthAgg, todayAgg, byCategory, budgets, goals, recent] = await Promise.all([
+  const [monthAgg, todayAgg, byCategory, budgets, goals, recent, user] = await Promise.all([
     prisma.transaction.aggregate({
       where: spendWhere,
       _sum: { amount: true },
@@ -66,6 +67,13 @@ async function buildSummary(userId, now = new Date()) {
       orderBy: { occurredAt: 'desc' },
       take: 10,
       include: { category: true },
+    }),
+    // Needed for safe-to-spend: it is `money left / days left`, and `monthly_allowance`
+    // is where "money left" comes from when the user has told us. Selected narrowly —
+    // the dashboard has no business reading a password hash.
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { monthlyAllowance: true },
     }),
   ]);
 
@@ -107,15 +115,32 @@ async function buildSummary(userId, now = new Date()) {
 
   const totalBudget = budgetRows.reduce((acc, b) => acc + b.amount, 0);
   const monthSpend = num(monthAgg._sum.amount);
+  const todaySpend = num(todayAgg._sum.amount);
+
+  // The fallback basis counts only monthly budgets. A weekly budget of 500 is not 500
+  // of monthly headroom, and silently treating it as such would overstate safe-to-spend
+  // by roughly 4x — so it is excluded rather than approximated.
+  const monthlyBudgeted = budgetRows
+    .filter((b) => b.period === 'monthly')
+    .reduce((acc, b) => acc + b.amount, 0);
+
+  const health = computeSpendingHealth({
+    allowance: user && user.monthlyAllowance != null ? Number(user.monthlyAllowance) : null,
+    totalBudgeted: monthlyBudgeted,
+    monthSpend,
+    todaySpend,
+    now,
+  });
 
   return {
     generatedAt: new Date().toISOString(),
     month: { start: start.toISOString(), end: end.toISOString() },
     spend: {
       month: round2(monthSpend),
-      today: round2(num(todayAgg._sum.amount)),
+      today: round2(todaySpend),
       transactionCount: monthAgg._count._all,
     },
+    health,
     budgets: budgetRows,
     totals: {
       budgeted: round2(totalBudget),

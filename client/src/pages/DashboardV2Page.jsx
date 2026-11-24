@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import AddTransactionForm from '../components/AddTransactionForm';
+import SpendingHealthCard from '../components/SpendingHealthCard';
 import useLiveUpdates from '../hooks/useLiveUpdates';
 
 const inr = new Intl.NumberFormat('en-IN', {
@@ -168,6 +169,13 @@ export default function DashboardV2Page() {
             </button>
           </div>
         ) : null}
+
+        {/* Safety score + safe-to-spend. Deliberately above the raw totals: "what may I
+            spend today" is the question a user actually opens this app to answer, and a
+            month total does not answer it. */}
+        <section className="mt-6">
+          <SpendingHealthCard health={summary?.health} onChanged={() => load({ fresh: true })} />
+        </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
           <StatCard label="Spent this month" value={money(spend.month)} hint={`${spend.transactionCount} transactions`} />

@@ -5,8 +5,19 @@
 ## Backlog
 - [ ] Gmail email-parsing fallback ingestion (Phase 2, optional)
 - [ ] Add a partial unique index on `categories(name) WHERE is_default AND user_id IS NULL` so the default seed is race-proof at the database level, not only in application logic.
-- [ ] `LoginPage.jsx` posts to `/api/auth/forgot-password`, which no longer exists on the Prisma auth router -> 404. Password reset is dead until the Phase 3 frontend rebuild.
-- [ ] v1 client/mobile screens (expenses, jars, splits, wishlist, friends, ...) still call Mongoose routes, so they fail when `MONGO_URI` is absent. Either port them to Prisma or hide them until Phase 3.
+- [ ] **Real password reset.** The screen no longer lies (it states the feature is
+      unavailable and points at Google sign-in), but reset itself still does not exist.
+      Needs reset-token columns on `users` — a migration, its own commit per Rules.md,
+      applied to production by hand — plus SMTP credentials. `ResetPasswordPage` posts to
+      `/auth/reset-password`, also absent; it is unreachable rather than broken, since the
+      email that linked to it is no longer sent. Both are fixed by that one migration.
+- [ ] **Port the retired v1 screens to Prisma** (jars, wishlist, wrapped, request-money, AI
+      personality). The web routes no longer 500 — they serve `V1RetiredPage` — so this is
+      now a feature gap rather than a breakage. The page components are kept in the tree as
+      the reference for the port.
+- [ ] **Mobile v1 screens still call Mongoose routes.** Only the SMS ingestion path was
+      rebuilt against v2 (`/api/ingest/sms`). The rest of the Expo app is untouched and
+      will fail the same way the web screens did.
 - [ ] Prisma 6 -> 7 upgrade: v7 moves the direct/migration URL out of `schema.prisma` into `prisma.config.ts`. Deliberately NOT done the night before the mid-term demo.
 - [ ] Live Setu AA sandbox consent click-through in the web client (Phase 2 leftover — server consent + fixture ingest passed; browser OAuth not built)
 - [ ] RabbitMQ async ingest (Phase 2 leftover — ingest is synchronous; DoD only required a durable `transactions` row)
@@ -14,16 +25,69 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] **Phase 3 remainder: safety score + safe-to-spend on the dashboard.** ImplementationPlan
-      lists these alongside recent transactions; the DoD gate ("adding a transaction updates
-      the dashboard live") is met without them, but the phase is not fully delivered until
-      they are. v1 has the maths in `server/utils/financialHealth.js`, which is Mongo-shaped
-      and needs porting to Prisma rather than copying.
-- [ ] Phase 3: retire or hide the v1 Mongoose-backed screens now the v2 dashboard has landed
-      (supersedes the two v1-breakage Backlog cards). The old dashboard is parked at `/v1`.
+- [ ] **Phase 4: RAG assistant.** Next phase. Design is now fixed by the approved P1-P4
+      decisions (`docs/TechSpec.md` §3, §3.1, §3.2) — hybrid pgvector + FTS retrieval fused
+      with RRF, `bge-small-en-v1.5` at 384 dims run locally, one transaction row to one
+      templated sentence with no chunking. `ai-service/` is still the v1 prompt-stuffer:
+      no pgvector, no LangGraph, no use of the `documents` table.
 
 ## In Progress
-- [ ] **Phase 3: v2 dashboard on the Prisma API.** Discovered 2026-11-10: the client calls
+_(empty)_
+
+## Review
+_(empty)_
+
+## Done
+
+### Phase 3 — DELIVERED 2026-11-25. Suite 53 pass / 0 fail.
+
+- [x] **Phase 3 remainder: safety score + safe-to-spend.** `services/spendingHealth.js`
+      (pure, takes `now` as an argument, no Prisma) plus a `health` block on
+      `GET /api/dashboard/summary` and `SpendingHealthCard` on the dashboard. A port of
+      v1's `utils/financialHealth.js`, not a copy: v1's arithmetic is wrapped in a
+      Mongo-shaped loader, computes month bounds in local time while the rest of the v2
+      dashboard is UTC, and carries the defect below.
+      - **Real bug found by porting it.** v1 did
+        `usageRatio = recommendedDailyLimit > 0 ? spentToday / recommendedDailyLimit : 0`.
+        The daily limit is `remaining / daysLeft`, so it goes non-positive exactly when the
+        user has spent their whole allowance — at which point the ternary forces the ratio
+        to 0, `getSpendingStatus(0)` returns `SAFE` and `savingsScore` is 100. **v1 told a
+        user who had spent every rupee that they were "✅ Safe Spending" with a perfect
+        score**, and contradicted itself in the same payload since `monthHealthScore` was
+        correctly 0. Running out is now its own state and is never `safe`.
+        **Negative control:** restoring the v1 ternary fails exactly one test — the one
+        that targets it — and nothing else.
+      - **Second v1 problem fixed: no basis.** v1 read `user.allowance` and, when unset,
+        computed `0 - spent`: a negative remaining, a negative daily limit and a score of 0.
+        A new account logging one ₹349 coffee rendered as a financial emergency. Now the
+        basis is the allowance, else the sum of **monthly** budgets, else `basis: null`
+        with every derived figure null and the card asking for an allowance. Weekly
+        budgets are deliberately excluded from the fallback — a weekly 4000 is not 4000 of
+        monthly headroom and counting it would overstate safe-to-spend roughly fourfold.
+      - Proven by `phase3.spendingHealth.test.js`, **10 tests**: 6 pure (day maths incl.
+        leap February and the last-day divide-by-zero clamp, the exhausted case, all seven
+        status-band edges, budget fallback, no-basis refusal) and 4 against live Postgres
+        through the real API (fresh user, allowance set then a spend moves it, credits and
+        duplicate-flagged rows not inflating the score, monthly-vs-weekly basis).
+      - Honours the Phase 2 conventions, asserted rather than assumed: a credit is not
+        spend and is not extra allowance, and an `is_duplicate_flag` row is not counted.
+- [x] **Phase 3: v1 Mongoose-backed screens retired** (supersedes the two v1-breakage
+      Backlog cards). Six routes — `/v1`, `/jars`, `/wishlist`, `/wrapped`,
+      `/request-money`, `/profile/ai-personality` — pointed at pages that fetch v1 Mongo
+      endpoints and so 500 in production. They now serve `V1RetiredPage`, which names the
+      screen, what it did and what it is waiting on. `/help` and `/profile/sms-sync` stay
+      routed: both contain no API calls at all. The page components are kept as the port
+      reference, unrouted rather than deleted. Side effect: Vite tree-shakes them out and
+      the bundle drops **1,134 KB → 318 KB**.
+- [x] **Reset-password screen stopped lying.** It posted to
+      `POST /api/auth/forgot-password`, absent from the Prisma auth router, so it 404ed and
+      rendered "Failed to send reset email. Please try again later." — retrying never
+      works, and it sent a locked-out user to their inbox to wait for mail nobody sent. Now
+      states the feature is unavailable and points at Google sign-in, which does link by
+      email and does work. Not implemented for real because `users` has no reset-token
+      columns: that needs a migration applied to production by hand plus SMTP credentials.
+
+- [x] **Phase 3: v2 dashboard on the Prisma API.** Discovered 2026-11-10: the client calls
   **zero** v2 endpoints — no `/budgets`, `/goals`, `/transactions`, `/categories`. Every one of
   its ~50 calls is a v1 Mongoose route, and `DashboardPage` fetches `/budget/stats`, which does
   `User.findById` through Mongoose. With `MONGO_URI` deleted (Task.md step 3) the landing page
@@ -79,10 +143,8 @@
         connections cannot accumulate. **Negative control:** disabling the push fails 3 of 5.
         Suite **43 pass / 0 fail**, with Redis and without.
 
-## Review
-_(empty)_
+### Earlier (Phases 0-2)
 
-## Done
 - [x] Reorganize planning docs into docs/ and root working files (Tracker.md, Rules.md)
 - [x] Create AGENTS.md with persistent project instructions
 - [x] Commit + push to github.com/Platypus12345/AllowanceAI (commit 79161e7)
