@@ -3,6 +3,7 @@ const verifyJWT = require('../middleware/verifyJWT');
 const ingest = require('../services/ingestService');
 const { invalidateSummary } = require('../services/dashboardService');
 const { publishToUser } = require('../services/realtime');
+const { indexTransactionInBackground } = require('../services/assistantClient');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -21,6 +22,13 @@ router.post('/sms', async (req, res) => {
     });
     await invalidateSummary(req.userId);
     publishToUser(req.userId, { type: 'transaction.created' });
+
+    // Best-effort assistant indexing. An SMS that produced a durable transactions row has
+    // done its job; making it retrievable must not be able to fail that.
+    if (result.transaction && result.transaction.id) {
+      indexTransactionInBackground(result.transaction.id);
+    }
+
     res.status(201).json({
       ...ingest.serializeTransaction(result.transaction),
       duplicateOf: result.duplicateOf,
@@ -59,6 +67,15 @@ router.post('/setu', async (req, res) => {
     });
     await invalidateSummary(req.userId);
     publishToUser(req.userId, { type: 'transaction.created' });
+
+    // One AA pull can bring back many transactions, so index each. Same best-effort
+    // contract as the SMS path above.
+    for (const r of results) {
+      if (r.transaction && r.transaction.id) {
+        indexTransactionInBackground(r.transaction.id);
+      }
+    }
+
     res.status(201).json({
       linkedAccount,
       transactions: results.map((r) => ({

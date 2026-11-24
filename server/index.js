@@ -90,6 +90,8 @@ app.use('/api/goals', goalsRoutes);
 app.use('/api/ingest', require('./routes/ingest'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+// v2 RAG assistant. routes/ai.js above is the v1 Mongoose-backed one; they share no code.
+app.use('/api/assistant', require('./routes/assistant'));
 
 const cron = require('node-cron');
 const RecurringExpense = require('./models/RecurringExpense');

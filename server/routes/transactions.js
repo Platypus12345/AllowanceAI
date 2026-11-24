@@ -4,6 +4,7 @@ const prisma = require('../config/prisma');
 const ingest = require('../services/ingestService');
 const { invalidateSummary } = require('../services/dashboardService');
 const { publishToUser } = require('../services/realtime');
+const { indexTransactionInBackground } = require('../services/assistantClient');
 
 const router = express.Router();
 router.use(verifyJWT);
@@ -65,6 +66,15 @@ router.post('/', async (req, res) => {
 
     await invalidateSummary(req.userId);
     publishToUser(req.userId, { type: 'transaction.created' });
+
+    // Make it retrievable by the assistant. Deliberately not awaited and it never
+    // rejects: a recorded spend is the product, its searchability is a convenience, so
+    // a sleeping or unconfigured ai-service must not fail this write. POST
+    // /api/assistant/reindex catches up anything missed.
+    if (result && result.transaction && result.transaction.id) {
+      indexTransactionInBackground(result.transaction.id);
+    }
+
     res.status(201).json(result);
   } catch (error) {
     console.error('Create manual transaction failed:', error);

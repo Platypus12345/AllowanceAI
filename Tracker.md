@@ -25,11 +25,20 @@
 - [ ] Multi-currency support (explicitly out of scope per PRD — do not build unless asked)
 
 ## To Do
-- [ ] **Phase 4: RAG assistant.** Next phase. Design is now fixed by the approved P1-P4
-      decisions (`docs/TechSpec.md` §3, §3.1, §3.2) — hybrid pgvector + FTS retrieval fused
-      with RRF, `bge-small-en-v1.5` at 384 dims run locally, one transaction row to one
-      templated sentence with no chunking. `ai-service/` is still the v1 prompt-stuffer:
-      no pgvector, no LangGraph, no use of the `documents` table.
+- [ ] **Phase 5: eval & guardrails.** The DoD was rewritten by approved P3: a deterministic
+      numpy Recall@K / MRR / NDCG gate in CI that needs no API key, plus Ragas nightly for
+      faithfulness, plus a real Langfuse trace. `ai-service/eval/` exists but is empty.
+      Phase 4's `answer_is_grounded` is the hand-rolled placeholder the Guardrails AI node
+      replaces at the same boundary.
+- [ ] **Streaming the assistant reply.** Phase 4's DoD said "chat endpoint + websocket
+      streaming"; the endpoint is delivered and streaming is not. The answer arrives in one
+      piece, which is honest but slower-feeling than it needs to be. The websocket
+      infrastructure from Phase 3 (`/ws`) is already there to carry it.
+- [ ] **Index-on-write is best-effort only.** `indexTransactionInBackground` is
+      fire-and-forget by design, so a transaction written while ai-service is asleep is on
+      the dashboard but not yet retrievable. `POST /api/assistant/reindex` repairs it and
+      the UI offers that button, but a durable queue (the RabbitMQ in Rules.md) is the
+      proper fix.
 
 ## In Progress
 _(empty)_
@@ -38,6 +47,82 @@ _(empty)_
 _(empty)_
 
 ## Done
+
+### Phase 4 — RAG assistant DELIVERED 2026-11-25. ai-service 76 pytest, server 65 tests, 0 fail.
+
+- [x] **Hybrid retrieval (P1).** `rag/retrieval.py` — dense cosine over `documents.embedding`
+      plus Postgres FTS over the generated `chunk_tsv`, fused with RRF (k=60). RRF consumes
+      *ranks*, not scores, which is why it was chosen: there is no principled way to
+      normalise `ts_rank_cd` against a cosine distance, and RRF makes the question vanish.
+      - **Real bug found by a failing test, not by reading docs.** `websearch_to_tsquery`
+        joins terms with **AND**. Right for a search box, wrong for retrieval: "how much
+        did I spend at ZORVEX PANTRY" parses to `'much' & 'spend' & 'zorvex' & 'pantri'`,
+        and a transaction sentence has the merchant but none of the filler — so the match
+        fails. **Nothing errors.** The lexical arm contributed nothing to every
+        natural-language question and "hybrid" silently degraded to dense-only. Verified
+        directly on the container: AND returns `false` on the row it should rank first, OR
+        returns `true`. The test asserting the target was found by *both* arms caught it.
+        **Negative control:** restoring the AND form fails 3 tests.
+      - **Honest negative result, recorded not buried.** P1 was adopted citing 73% to 100%
+        Recall@1. **On our data the gap is much narrower.** For a distinctive merchant name
+        or a UPI handle, dense alone already ranks the target #1 — subword tokenisation
+        handles invented brand tokens well. The measured win is specifically on
+        numeric/reference identifiers: "transaction with reference 884421" gives dense
+        **#2**, lexical #1, hybrid **#1**. There is also a measured **cost**: a
+        semantic-only match carries one RRF term against two and can be demoted a place or
+        two. All three are pinned by tests, and the headline test has a **guard assertion
+        that fails if the corpus stops exercising the hybrid case**, so the claim cannot rot
+        into passing for the wrong reason.
+      - Three silent-failure details handled and tested: `hnsw.iterative_scan =
+        'relaxed_order'` (a user-filtered HNSW scan otherwise returns fewer than `LIMIT k`
+        rows), the `id ASC` tiebreaker (byte-identical ordering across 4 runs), and the
+        `user_id` filter inside both CTEs rather than only on the outer query.
+- [x] **Embeddings (P2).** `bge-small-en-v1.5`, 384 dims, local, loaded once behind a
+      double-checked lock. **Deviation recorded in TechSpec 3.1:** fastembed/onnxruntime
+      instead of sentence-transformers — same model, same dimension, only the runtime
+      differs. torch is ~1 GB installed and does not fit the free tier that P2's own
+      rationale is written around; measured 203 MB of site-packages plus a 65 MB model.
+      Caveat stated: fastembed resolves to Qdrant's int8-quantized ONNX export, so vectors
+      are not bit-identical to fp32.
+- [x] **One row, one sentence (P4).** `rag/render.py`, no chunking. Deterministic, UTC-
+      normalised so the text is filed under the same day the dashboard counts it in, and
+      duplicate-flagged rows are labelled rather than hidden so the model cannot silently
+      contradict the dashboard.
+- [x] **LangGraph graph.** retrieve, rules, generate — linear not agentic (P5). The
+      retrieval/rules split is the point: retrieved sentences are evidence a transaction
+      exists, never the authority on a total, and the prompt explicitly forbids summing
+      HISTORY (retrieval returns at most 8 rows, so adding them up would understate any
+      month). `rag/facts.py` repeats the Phase 2 conventions in SQL.
+      - **A design conflict a test forced.** `generate_node` originally caught every
+        exception and degraded gracefully; a test expecting 503 for a missing API key got
+        200, because the graph had swallowed it. Those are different failures — a provider
+        timeout is a hiccup, a missing key is an operator error, and swallowing it makes a
+        misconfigured deployment look like a permanently flaky model nobody ever fixes.
+        `LLMNotConfigured` now propagates; everything else still degrades. Both pinned.
+      - `answer_is_grounded` checks every number >= 10 in the answer appears in the facts or
+        retrieved text, normalised so "1,249.00" and "1249" match. Deterministic, no judge,
+        no second model call. Ungrounded answers are **flagged, not rewritten**.
+- [x] **Trust boundary.** `/assistant/*` takes a `user_id` and returns that user's
+      financial history, so it must never be browser-reachable: browser, then `server/`
+      (verifyJWT establishes *who*), then ai-service (`X-Internal-Token`, `compare_digest`).
+      ai-service **fails closed** — with `INTERNAL_API_TOKEN` unset every endpoint answers
+      503, even when a token is presented. No development default, because a default is a
+      hardcoded credential in a public repo. `routes/assistant.js` always uses `req.userId`
+      and never reads a body `user_id`; the test fires `user_id`, `userId` and `user` at it
+      in one request and asserts the attacker's own id is what goes out.
+- [x] **Verified end to end against live local services with the real LLM** (OpenRouter,
+      `openai/gpt-4o-mini`): register, allowance, 4 spends, dashboard, backfill, retrieve in
+      all 3 modes, 3 real questions. "How much did I spend at ZORVEX PANTRY?" returned "You
+      spent Rs1,249.00 at ZORVEX PANTRY. This transaction is part of your total food
+      spending this month, which is Rs1,684.00 across three transactions."
+      `grounded=True`, 4 citations. The 1,684 is correct and came from SQL, not from the
+      model adding up retrieved rows. Cross-user injection confirmed blocked.
+- [x] **UX fix found by that run.** The card showed safety score **82** beside status
+      **"Slow down"** in a red ring. Both figures were right — 82% of the month survives
+      while today's Rs2,144 is 152% of the Rs1,408 safe daily rate — but side by side they
+      read as a contradiction. The ring is now coloured by the score it displays, today's
+      pace has its own labelled badge ("today: ..."), and the card says in words that most
+      of the month is intact when the two disagree.
 
 ### Phase 3 — DELIVERED 2026-11-25. Suite 53 pass / 0 fail.
 

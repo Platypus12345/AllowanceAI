@@ -27,13 +27,31 @@ function money(value) {
   return inr.format(Number(value) || 0);
 }
 
-// Matches the status bands in server/services/spendingHealth.js.
+// Matches the status bands in server/services/spendingHealth.js. `status` is about
+// TODAY'S PACE, so this tone is only ever applied to today's figures.
 const TONE = {
   safe: { ring: '#44e2cd', text: 'text-secondary' },
   moderate: { ring: '#8083ff', text: 'text-on-surface' },
   tight: { ring: '#ffb690', text: 'text-tertiary' },
   danger: { ring: '#ffb4ab', text: 'text-error' },
 };
+
+// The ring is coloured by the SCORE, not by the status, and this is deliberate.
+//
+// The two numbers answer different questions: `safetyScore` is how much of the month's
+// money survives, and `status` is whether today's pace is sustainable. They legitimately
+// disagree — spending 2,144 in one day on a 12,000 allowance leaves 82% of the month
+// intact while being 152% of today's safe rate. Both figures are right.
+//
+// Colouring an 82 ring red because today was heavy made the card read as a contradiction
+// (observed in an end-to-end run before this was changed). So the ring tracks the score it
+// displays, today's pace gets its own clearly-labelled badge, and the card states in words
+// that they measure different things.
+function scoreTone(score) {
+  if (score >= 60) return { ring: '#44e2cd', text: 'text-secondary' };
+  if (score >= 30) return { ring: '#ffb690', text: 'text-tertiary' };
+  return { ring: '#ffb4ab', text: 'text-error' };
+}
 
 /** Prompt shown when there is no allowance and no monthly budget to divide. */
 function SetAllowance({ onSaved }) {
@@ -108,14 +126,17 @@ export default function SpendingHealthCard({ health, onChanged }) {
   }
 
   const tone = TONE[health.status] || TONE.moderate;
+  const ringTone = scoreTone(health.safetyScore);
 
   return (
     <div className="rounded-2xl border border-outline-variant/40 bg-surface-container p-5">
       <div className="flex flex-wrap items-center gap-6">
-        <ProgressRing percentage={health.safetyScore} size={116} strokeWidth={10} color={tone.ring}>
-          <span className="text-2xl font-extrabold tracking-tight">{health.safetyScore}</span>
+        <ProgressRing percentage={health.safetyScore} size={116} strokeWidth={10} color={ringTone.ring}>
+          <span className={`text-2xl font-extrabold tracking-tight ${ringTone.text}`}>
+            {health.safetyScore}%
+          </span>
           <span className="text-[10px] uppercase tracking-wider text-on-surface-variant">
-            safety
+            month left
           </span>
         </ProgressRing>
 
@@ -125,7 +146,7 @@ export default function SpendingHealthCard({ health, onChanged }) {
             <span
               className={`rounded-full bg-surface-container-high px-2.5 py-0.5 text-[11px] font-semibold ${tone.text}`}
             >
-              {health.statusLabel}
+              today: {health.statusLabel}
             </span>
           </div>
 
@@ -149,6 +170,14 @@ export default function SpendingHealthCard({ health, onChanged }) {
             <p className="mt-1 text-xs text-on-surface-variant">
               {money(health.spentToday)} already spent today · {money(health.avgDailySpend)}/day
               average so far
+            </p>
+          ) : null}
+
+          {/* Said in words, because the ring and the badge can legitimately disagree and
+              a user should not have to work out why. */}
+          {!health.exhausted && health.safetyScore >= 60 && (health.status === 'tight' || health.status === 'danger') ? (
+            <p className="mt-2 text-xs text-on-surface-variant">
+              Most of your month is still intact — today was just a heavy day.
             </p>
           ) : null}
         </div>

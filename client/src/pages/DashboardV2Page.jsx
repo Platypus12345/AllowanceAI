@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import AddTransactionForm from '../components/AddTransactionForm';
 import SpendingHealthCard from '../components/SpendingHealthCard';
+import AssistantPanel from '../components/AssistantPanel';
 import useLiveUpdates from '../hooks/useLiveUpdates';
 
 const inr = new Intl.NumberFormat('en-IN', {
@@ -186,6 +187,12 @@ export default function DashboardV2Page() {
             hint={totals.budgeted > 0 ? `of ${money(totals.budgeted)} budgeted` : 'No budget set yet'}
             tone={totals.budgeted > 0 && totals.remaining < 0 ? 'warn' : 'good'}
           />
+        </section>
+
+        {/* Renders nothing when the server reports no INTERNAL_API_TOKEN — a question box
+            that cannot work is worse than none, since the user blames their question. */}
+        <section className="mt-8">
+          <AssistantPanel />
         </section>
 
         <section className="mt-8">
